@@ -44,17 +44,17 @@ jobs:
     steps:
       - name: Generate GitHub App Token
         id: app-token
-        if: ${{ vars.APP_ID != '' }}
+        if: ${{ secrets.APP_ID != '' }}
         uses: actions/create-github-app-token@v1
         with:
-          app-id: ${{ vars.APP_ID }}
+          app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token || secrets.ADMIN_TOKEN || secrets.DOCS_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -154,7 +154,7 @@ jobs:
         if: ${{ !inputs.skip_commit && inputs.create_pr == true && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token || secrets.ADMIN_TOKEN || secrets.DOCS_TOKEN || secrets.GITHUB_TOKEN }}
           commit-message: |
             📚 Auto-generate documentation from Go source code
 
