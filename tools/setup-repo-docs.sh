@@ -50,8 +50,10 @@ jobs:
       go_version: "$GO_VERSION"
       generate_examples: true
       skip_commit: false
+      create_pr: true  # Use PR approach for protected branches
     permissions:
       contents: write
+      pull-requests: write
 EOF
 
 # Create default configuration
