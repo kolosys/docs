@@ -31,6 +31,14 @@ on:
         required: false
         type: boolean
         default: false
+      app_id:
+        description: "GitHub App ID for authentication"
+        required: true
+        type: string
+      app_private_key:
+        description: "GitHub App private key for authentication"
+        required: true
+        type: string
 
 # Permissions required for auto-committing generated documentation
 permissions:
@@ -42,46 +50,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Debug secret availability
+      - name: Validate inputs
         run: |
-          echo "=== ORGANIZATION VARIABLES ==="
-          echo "APP_ID (org var): '${{ vars.APP_ID }}'"
-          echo "APP_ID available: ${{ vars.APP_ID != '' }}"
-
-          echo "=== REPOSITORY SECRETS ==="
-          echo "APP_PRIVATE_KEY available: ${{ secrets.APP_PRIVATE_KEY != '' }}"
-          echo "APP_PRIVATE_KEY length: ${#PRIVATE_KEY}"
-          echo "First 50 chars: ${PRIVATE_KEY:0:50}..."
-
-          echo "=== CONFIRMATION ==="
-          echo "Repository: ${{ github.repository }}"
-          echo "Actor: ${{ github.actor }}"
-        env:
-          PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
-
-      - name: Decode GitHub App Private Key
-        id: decode
-        if: ${{ vars.APP_ID != '' }}
-        env:
-          PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
-        run: |
-          private_key=$(echo "$PRIVATE_KEY" | base64 -d | awk 'BEGIN {ORS="\\n"} {print}' | head -c -2)
-          echo "::add-mask::$private_key"
-          echo "private_key=$private_key" >> "$GITHUB_OUTPUT"
+          echo "app_id: ${{ inputs.app_id }}"
+          echo "app_private_key: ${{ inputs.app_private_key }}"
+          if [ -z "${{ inputs.app_id }}" ]; then
+            echo "app_id is required"
+            exit 1
+          fi
+          if [ -z "${{ inputs.app_private_key }}" ]; then
+            echo "app_private_key is required"
+            exit 1
+          fi
 
       - name: Generate GitHub App Token
         id: app-token
-        if: ${{ vars.APP_ID != '' && steps.decode.outputs.private_key != '' }}
         uses: actions/create-github-app-token@v1
         with:
-          app-id: ${{ vars.APP_ID }}
-          private-key: ${{ steps.decode.outputs.private_key }}
+          app-id: ${{ inputs.app_id }}
+          private-key: ${{ inputs.app_private_key }}
 
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token || secrets.ADMIN_TOKEN || secrets.DOCS_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Setup Go
         uses: actions/setup-go@v4
