@@ -44,7 +44,7 @@ on:
 
 jobs:
   generate-docs:
-    uses: kolosys/docs/.github/workflows/docs-workflow.yml@main
+    uses: kolosys/.actions/.github/workflows/docs-workflow.yml@main
     with:
       repository_name: "$REPO_NAME"
       go_version: "$GO_VERSION"
@@ -88,13 +88,6 @@ EOF
 echo "📖 Creating GitBook configuration..."
 cat > .gitbook.yaml << EOF
 root: ./docs
-
-structure:
-  introduction: INTRODUCTION.md
-  summary: SUMMARY.md
-
-redirects:
-  previous/page: new-folder/page.md
 EOF
 
 echo "✅ Documentation setup complete for $REPO_NAME!"

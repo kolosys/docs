@@ -75,7 +75,7 @@ jobs:
           mkdir -p .kolosys-docs
 
           # Download the shared documentation generator
-          curl -sSL https://raw.githubusercontent.com/kolosys/docs/main/shared/scripts/generate-docs.go \
+          curl -sSL https://raw.githubusercontent.com/kolosys/.actions/main/shared/scripts/generate-docs.go \
             -o .kolosys-docs/generate-docs.go
 
           # Download shared templates if they don't exist
@@ -84,10 +84,10 @@ jobs:
             mkdir -p docs-templates
             
             # Download common templates
-            curl -sSL https://raw.githubusercontent.com/kolosys/docs/main/shared/templates/getting-started.md \
+            curl -sSL https://raw.githubusercontent.com/kolosys/.actions/main/shared/templates/getting-started.md \
               -o docs-templates/getting-started.md 2>/dev/null || echo "No getting-started template"
             
-            curl -sSL https://raw.githubusercontent.com/kolosys/docs/main/shared/templates/installation.md \
+            curl -sSL https://raw.githubusercontent.com/kolosys/.actions/main/shared/templates/installation.md \
               -o docs-templates/installation.md 2>/dev/null || echo "No installation template"
           fi
 

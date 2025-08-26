@@ -8,10 +8,10 @@ To add Kolosys documentation to any repository:
 
 ```bash
 # Download and run the setup script
-curl -sSL https://raw.githubusercontent.com/kolosys/docs/main/tools/setup-repo-docs.sh | bash -s your-repo-name
+curl -sSL https://raw.githubusercontent.com/kolosys/.actions/main/tools/setup-repo-docs.sh | bash -s your-repo-name
 
 # Or manually:
-curl -sSL https://raw.githubusercontent.com/kolosys/docs/main/tools/setup-repo-docs.sh -o setup-docs.sh
+curl -sSL https://raw.githubusercontent.com/kolosys/.actions/main/tools/setup-repo-docs.sh -o setup-docs.sh
 chmod +x setup-docs.sh
 ./setup-docs.sh your-repo-name
 ```
@@ -19,7 +19,7 @@ chmod +x setup-docs.sh
 ## 📁 Structure
 
 ```
-kolosys/docs/
+kolosys/.actions/
 ├── shared/
 │   ├── scripts/           # Reusable documentation scripts
 │   │   └── generate-docs.go
@@ -38,21 +38,25 @@ kolosys/docs/
 ## 🔧 Features
 
 ### ✅ Centralized Scripts
+
 - **Single source of truth** for documentation generation
 - **Automatic updates** when the shared scripts improve
 - **Consistent output** across all repositories
 
-### ✅ Shared Templates  
+### ✅ Shared Templates
+
 - **Common documentation patterns** (installation, getting started)
 - **Branded formatting** consistent with Kolosys style
 - **Easy customization** per repository
 
 ### ✅ Automated Workflows
+
 - **Auto-generates** documentation from Go source code
 - **Commits changes** automatically on push
 - **Syncs with GitBook** for beautiful documentation sites
 
 ### ✅ Configuration-Driven
+
 - **JSON configuration** for each repository
 - **No external dependencies** - uses Go standard library
 - **Flexible package discovery** for monorepos and single packages
@@ -62,11 +66,13 @@ kolosys/docs/
 ### For New Repositories
 
 1. **Run the setup script:**
+
    ```bash
-   curl -sSL https://raw.githubusercontent.com/kolosys/docs/main/tools/setup-repo-docs.sh | bash -s my-repo
+   curl -sSL https://raw.githubusercontent.com/kolosys/.actions/main/tools/setup-repo-docs.sh | bash -s my-repo
    ```
 
 2. **Customize configuration** (optional):
+
    ```json
    {
      "repository": {
@@ -85,6 +91,7 @@ kolosys/docs/
    ```
 
 3. **Commit and push:**
+
    ```bash
    git add .
    git commit -m "Add Kolosys documentation system"
@@ -113,12 +120,14 @@ Update your repository to use the centralized system:
 ## 🎯 Benefits
 
 ### For Developers
+
 - **Zero maintenance** - documentation updates automatically
 - **Consistent formatting** across all Kolosys projects
 - **Rich API documentation** with full type information
 - **Professional appearance** without manual work
 
 ### For Users
+
 - **Comprehensive documentation** for every package
 - **Searchable API reference** with Discord.js-style interface
 - **Working examples** and getting started guides
@@ -139,7 +148,7 @@ Current repositories using this system:
 {
   "repository": {
     "name": "package-name",
-    "owner": "kolosys", 
+    "owner": "kolosys",
     "description": "Package description"
   },
   "packages": [
@@ -197,7 +206,7 @@ Configure multiple packages in your config:
       "priority": 1
     },
     {
-      "name": "package2", 
+      "name": "package2",
       "description": "Second package",
       "priority": 2
     }
@@ -237,10 +246,10 @@ By default, the system creates pull requests instead of direct commits:
 ```yaml
 jobs:
   generate-docs:
-    uses: kolosys/docs/.github/workflows/docs-workflow.yml@main
+    uses: kolosys/.actions/.github/workflows/docs-workflow.yml@main
     with:
       repository_name: "your-repo"
-      create_pr: true  # Creates PRs instead of direct commits
+      create_pr: true # Creates PRs instead of direct commits
     permissions:
       contents: write
       pull-requests: write
@@ -252,7 +261,7 @@ For repositories without branch protection:
 
 ```yaml
 with:
-  create_pr: false  # Direct commits to main branch
+  create_pr: false # Direct commits to main branch
 ```
 
 ### **Personal Access Token Setup**
@@ -260,8 +269,9 @@ with:
 For additional security and bypassing some restrictions:
 
 1. **Create a Personal Access Token** with these permissions:
+
    - `contents: write`
-   - `pull-requests: write` 
+   - `pull-requests: write`
    - `metadata: read`
 
 2. **Add to repository secrets** as `DOCS_TOKEN`
@@ -271,13 +281,15 @@ For additional security and bypassing some restrictions:
 ### **GitHub Branch Protection Compatibility**
 
 ✅ **Works with all protection rules:**
+
 - Required pull request reviews
-- Required status checks  
+- Required status checks
 - Restrict pushes to specific users/teams
 - Repository rulesets
 - Branch name patterns
 
 ✅ **Automated workflow:**
+
 - Creates descriptive pull requests
 - Includes detailed change summaries
 - Auto-deletes feature branches after merge
