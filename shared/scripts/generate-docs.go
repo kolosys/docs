@@ -132,6 +132,13 @@ func main() {
 			config.Repository.Owner, config.Repository.Name, len(config.Packages))
 	}
 
+	// Process shared templates if they exist
+	err = generator.processSharedTemplates()
+	if err != nil {
+		fmt.Printf("❌ Error processing shared templates: %v\n", err)
+		// Continue anyway - templates are optional
+	}
+
 	for _, pkg := range config.Packages {
 		if config.Output.Verbose {
 			fmt.Printf("📝 Generating documentation for %s...\n", pkg.Name)
@@ -664,6 +671,83 @@ func (g *DocGenerator) generateAPIReference(pkg *PackageDoc, dir string) error {
 	defer file.Close()
 
 	return t.Execute(file, pkg)
+}
+
+func (g *DocGenerator) processSharedTemplates() error {
+	// Check if docs-templates directory exists
+	templatesDir := "docs-templates"
+	if g.config.Docs.TemplatesDir != "" {
+		templatesDir = g.config.Docs.TemplatesDir
+	}
+	
+	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
+		// No templates directory, skip processing
+		return nil
+	}
+	
+	// Create docs directory if it doesn't exist
+	docsDir := g.config.Docs.DocsDir
+	if err := os.MkdirAll(docsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create docs directory: %w", err)
+	}
+	
+	// Template data for shared templates
+	templateData := struct {
+		Repository RepositoryConfig
+		ImportPath string
+		Owner      string
+		Name       string
+	}{
+		Repository: g.config.Repository,
+		ImportPath: g.config.Repository.ImportPath,
+		Owner:      g.config.Repository.Owner,
+		Name:       g.config.Repository.Name,
+	}
+	
+	// Process each template file
+	templateFiles, err := filepath.Glob(filepath.Join(templatesDir, "*.md"))
+	if err != nil {
+		return fmt.Errorf("failed to find template files: %w", err)
+	}
+	
+	for _, templateFile := range templateFiles {
+		// Read template file
+		templateContent, err := os.ReadFile(templateFile)
+		if err != nil {
+			fmt.Printf("⚠️  Failed to read template %s: %v\n", templateFile, err)
+			continue
+		}
+		
+		// Parse and execute template
+		tmpl, err := template.New(filepath.Base(templateFile)).Parse(string(templateContent))
+		if err != nil {
+			fmt.Printf("⚠️  Failed to parse template %s: %v\n", templateFile, err)
+			continue
+		}
+		
+		// Create output file
+		outputFile := filepath.Join(docsDir, filepath.Base(templateFile))
+		file, err := os.Create(outputFile)
+		if err != nil {
+			fmt.Printf("⚠️  Failed to create output file %s: %v\n", outputFile, err)
+			continue
+		}
+		
+		// Execute template
+		err = tmpl.Execute(file, templateData)
+		file.Close()
+		
+		if err != nil {
+			fmt.Printf("⚠️  Failed to execute template %s: %v\n", templateFile, err)
+			continue
+		}
+		
+		if g.config.Output.Verbose {
+			fmt.Printf("📄 Processed template: %s -> %s\n", templateFile, outputFile)
+		}
+	}
+	
+	return nil
 }
 
 func (g *DocGenerator) generateExamples(pkg *PackageDoc, dir string) error {

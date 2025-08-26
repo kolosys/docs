@@ -109,15 +109,8 @@ jobs:
         run: |
           echo "🚀 Building ${{ inputs.repository_name }} documentation..."
 
-          # Run the documentation generator
+          # Run the documentation generator (now processes templates automatically)
           go run .kolosys-docs/generate-docs.go
-
-          # Copy templates if they exist
-          if [ -d "docs-templates" ]; then
-            echo "📄 Copying documentation templates..."
-            mkdir -p docs
-            cp docs-templates/*.md docs/ 2>/dev/null || echo "No template files to copy"
-          fi
 
       - name: Verify generated documentation
         run: |
