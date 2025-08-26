@@ -258,7 +258,18 @@ func (g *DocGenerator) parsePackage(packageName string) (*PackageDoc, error) {
 	}
 	
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, pkgPath, nil, parser.ParseComments)
+	
+	// Create a filter function to exclude _test.go files
+	filter := func(info os.FileInfo) bool {
+		// Exclude _test.go files
+		if strings.HasSuffix(info.Name(), "_test.go") {
+			return false
+		}
+		// Include all other .go files
+		return strings.HasSuffix(info.Name(), ".go")
+	}
+	
+	pkgs, err := parser.ParseDir(fset, pkgPath, filter, parser.ParseComments)
 	if err != nil {
 		return nil, err
 	}
