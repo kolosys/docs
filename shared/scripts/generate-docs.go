@@ -139,6 +139,18 @@ func main() {
 		// Continue anyway - templates are optional
 	}
 
+	// Create docs directory if it doesn't exist
+	if err := os.MkdirAll(config.Docs.DocsDir, 0755); err != nil {
+		fmt.Printf("❌ Failed to create docs directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Copy repository README.md to docs directory
+	if err := generator.copyRepositoryReadme(); err != nil {
+		fmt.Printf("❌ Error copying repository README: %v\n", err)
+		// Continue anyway - README copy is optional
+	}
+
 	for _, pkg := range config.Packages {
 		if config.Output.Verbose {
 			fmt.Printf("📝 Generating documentation for %s...\n", pkg.Name)
@@ -826,4 +838,48 @@ See the [examples directory]({{ .RepoURL }}/tree/main/examples/{{ .Name }}) for 
 	}
 
 	return t.Execute(file, data)
+}
+
+func (g *DocGenerator) copyRepositoryReadme() error {
+	// Try to find the repository README.md file
+	readmePaths := []string{
+		"README.md",
+		"readme.md",
+		"Readme.md",
+		"README.MD",
+	}
+
+	var readmePath string
+	for _, path := range readmePaths {
+		if _, err := os.Stat(path); err == nil {
+			readmePath = path
+			break
+		}
+	}
+
+	if readmePath == "" {
+		if g.config.Output.Verbose {
+			fmt.Printf("⚠️  No README.md found in repository root, skipping copy\n")
+		}
+		return nil
+	}
+
+	// Read the repository README
+	readmeContent, err := os.ReadFile(readmePath)
+	if err != nil {
+		return fmt.Errorf("failed to read repository README: %w", err)
+	}
+
+	// Copy to docs directory
+	docsReadmePath := filepath.Join(g.config.Docs.DocsDir, "README.md")
+	err = os.WriteFile(docsReadmePath, readmeContent, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write README to docs directory: %w", err)
+	}
+
+	if g.config.Output.Verbose {
+		fmt.Printf("📄 Copied %s to %s\n", readmePath, docsReadmePath)
+	}
+
+	return nil
 }
