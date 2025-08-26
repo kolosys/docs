@@ -42,13 +42,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Decode GitHub App Private Key
+        id: decode
+        if: ${{ vars.APP_ID != '' }}
+        env:
+          PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          private_key=$(echo "${{ env.PRIVATE_KEY }}" | base64 -d | awk 'BEGIN {ORS="\\n"} {print}' | head -c -2)
+          echo "::add-mask::$private_key"
+          echo "private_key=$private_key" >> "$GITHUB_OUTPUT"
+
       - name: Generate GitHub App Token
         id: app-token
-        if: ${{ vars.APP_ID != '' }}
+        if: ${{ vars.APP_ID != '' && steps.decode.outputs.private_key != '' }}
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          private-key: ${{ steps.decode.outputs.private_key }}
 
       - name: Checkout repository
         uses: actions/checkout@v4
