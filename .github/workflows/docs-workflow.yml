@@ -42,13 +42,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Debug secret availability
+        run: |
+          echo "=== ORGANIZATION VARIABLES ==="
+          echo "APP_ID (org var): '${{ vars.APP_ID }}'"
+          echo "APP_ID available: ${{ vars.APP_ID != '' }}"
+
+          echo "=== REPOSITORY SECRETS ==="
+          echo "APP_PRIVATE_KEY available: ${{ secrets.APP_PRIVATE_KEY != '' }}"
+          echo "APP_PRIVATE_KEY length: ${#PRIVATE_KEY}"
+          echo "First 50 chars: ${PRIVATE_KEY:0:50}..."
+
+          echo "=== CONFIRMATION ==="
+          echo "Repository: ${{ github.repository }}"
+          echo "Actor: ${{ github.actor }}"
+        env:
+          PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Decode GitHub App Private Key
         id: decode
         if: ${{ vars.APP_ID != '' }}
         env:
           PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
         run: |
-          private_key=$(echo "${{ env.PRIVATE_KEY }}" | base64 -d | awk 'BEGIN {ORS="\\n"} {print}' | head -c -2)
+          private_key=$(echo "$PRIVATE_KEY" | base64 -d | awk 'BEGIN {ORS="\\n"} {print}' | head -c -2)
           echo "::add-mask::$private_key"
           echo "private_key=$private_key" >> "$GITHUB_OUTPUT"
 
