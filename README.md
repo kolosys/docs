@@ -226,6 +226,63 @@ To improve the shared documentation system:
 
 Changes to shared scripts automatically benefit all Kolosys repositories!
 
+## 🔒 Branch Protection & Security
+
+The documentation system supports repositories with GitHub branch protection rules and rulesets.
+
+### **Pull Request Mode (Recommended)**
+
+By default, the system creates pull requests instead of direct commits:
+
+```yaml
+jobs:
+  generate-docs:
+    uses: kolosys/docs/.github/workflows/docs-workflow.yml@main
+    with:
+      repository_name: "your-repo"
+      create_pr: true  # Creates PRs instead of direct commits
+    permissions:
+      contents: write
+      pull-requests: write
+```
+
+### **Direct Commit Mode (For Unprotected Branches)**
+
+For repositories without branch protection:
+
+```yaml
+with:
+  create_pr: false  # Direct commits to main branch
+```
+
+### **Personal Access Token Setup**
+
+For additional security and bypassing some restrictions:
+
+1. **Create a Personal Access Token** with these permissions:
+   - `contents: write`
+   - `pull-requests: write` 
+   - `metadata: read`
+
+2. **Add to repository secrets** as `DOCS_TOKEN`
+
+3. **Token will be used automatically** by the workflow
+
+### **GitHub Branch Protection Compatibility**
+
+✅ **Works with all protection rules:**
+- Required pull request reviews
+- Required status checks  
+- Restrict pushes to specific users/teams
+- Repository rulesets
+- Branch name patterns
+
+✅ **Automated workflow:**
+- Creates descriptive pull requests
+- Includes detailed change summaries
+- Auto-deletes feature branches after merge
+- Safe to auto-merge documentation updates
+
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) file.
