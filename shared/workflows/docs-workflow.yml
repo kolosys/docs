@@ -1,0 +1,152 @@
+# Reusable Documentation Generation Workflow
+# Usage: Copy this to your repository's .github/workflows/docs.yml
+# or reference it as a reusable workflow
+
+name: Generate Documentation
+
+on:
+  workflow_call:
+    inputs:
+      repository_name:
+        description: 'Name of the repository'
+        required: true
+        type: string
+      go_version:
+        description: 'Go version to use'
+        required: false
+        type: string
+        default: '1.22'
+      generate_examples:
+        description: 'Whether to generate examples documentation'
+        required: false
+        type: boolean
+        default: true
+      skip_commit:
+        description: 'Skip committing generated documentation'
+        required: false
+        type: boolean
+        default: false
+
+# Permissions required for auto-committing generated documentation
+permissions:
+  contents: write
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ inputs.go_version }}
+
+      - name: Download Kolosys documentation tools
+        run: |
+          echo "📥 Downloading Kolosys documentation tools..."
+          
+          # Create temp directory for tools
+          mkdir -p .kolosys-docs
+          
+          # Download the shared documentation generator
+          curl -sSL https://raw.githubusercontent.com/kolosys/docs/main/shared/scripts/generate-docs.go \
+            -o .kolosys-docs/generate-docs.go
+          
+          # Download shared templates if they don't exist
+          if [ ! -d "docs-templates" ]; then
+            echo "📄 Downloading shared templates..."
+            mkdir -p docs-templates
+            
+            # Download common templates
+            curl -sSL https://raw.githubusercontent.com/kolosys/docs/main/shared/templates/getting-started.md \
+              -o docs-templates/getting-started.md 2>/dev/null || echo "No getting-started template"
+            
+            curl -sSL https://raw.githubusercontent.com/kolosys/docs/main/shared/templates/installation.md \
+              -o docs-templates/installation.md 2>/dev/null || echo "No installation template"
+          fi
+
+      - name: Generate documentation configuration
+        run: |
+          echo "⚙️ Generating documentation configuration..."
+          
+          # Create default config if it doesn't exist
+          if [ ! -f "docs-config.json" ] && [ ! -f "kolosys-docs.json" ]; then
+            echo "📝 Creating default configuration..."
+            cat > kolosys-docs.json << EOF
+          {
+            "repository": {
+              "name": "${{ inputs.repository_name }}",
+              "owner": "kolosys",
+              "description": "Documentation for ${{ inputs.repository_name }}"
+            },
+            "packages": [
+              {
+                "name": "${{ inputs.repository_name }}",
+                "description": "Main package",
+                "priority": 1
+              }
+            ],
+            "docs": {
+              "root_dir": ".",
+              "docs_dir": "docs"
+            },
+            "output": {
+              "generate_combined_api": true,
+              "generate_examples": ${{ inputs.generate_examples }},
+              "verbose": true
+            }
+          }
+          EOF
+          fi
+
+      - name: Build documentation
+        run: |
+          echo "🚀 Building ${{ inputs.repository_name }} documentation..."
+          
+          # Run the documentation generator
+          go run .kolosys-docs/generate-docs.go
+          
+          # Copy templates if they exist
+          if [ -d "docs-templates" ]; then
+            echo "📄 Copying documentation templates..."
+            mkdir -p docs
+            cp docs-templates/*.md docs/ 2>/dev/null || echo "No template files to copy"
+          fi
+
+      - name: Verify generated documentation
+        run: |
+          echo "📋 Checking generated documentation files..."
+          ls -la docs/ || echo "No docs directory found"
+          if [ -d "docs" ]; then
+            echo "📁 Contents of docs directory:"
+            find docs -name "*.md" -type f | head -10
+            echo "📊 Total markdown files: $(find docs -name "*.md" -type f | wc -l)"
+          fi
+
+      - name: Cleanup
+        run: |
+          # Remove temporary files
+          rm -rf .kolosys-docs
+
+      - name: Commit generated documentation
+        if: ${{ !inputs.skip_commit }} && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: |
+            📚 Auto-generate documentation from Go source code
+            
+            - Updated API documentation
+            - Generated examples from source
+            - Updated references
+            
+            [skip ci]
+          file_pattern: 'docs/**'
+          commit_user_name: 'github-actions[bot]'
+          commit_user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_author: 'github-actions[bot] <github-actions[bot]@users.noreply.github.com>'
