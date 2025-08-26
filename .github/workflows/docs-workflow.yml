@@ -133,8 +133,17 @@ jobs:
           # Remove temporary files
           rm -rf .kolosys-docs
 
+      - name: Debug workflow inputs
+        run: |
+          echo "skip_commit: ${{ inputs.skip_commit }}"
+          echo "create_pr: ${{ inputs.create_pr }}"
+          echo "event_name: ${{ github.event_name }}"
+          echo "ref: ${{ github.ref }}"
+          echo "Should create PR: ${{ !inputs.skip_commit && inputs.create_pr && github.event_name == 'push' && github.ref == 'refs/heads/main' }}"
+          echo "Should direct commit: ${{ !inputs.skip_commit && !inputs.create_pr && github.event_name == 'push' && github.ref == 'refs/heads/main' }}"
+
       - name: Create Pull Request for generated documentation
-        if: ${{ !inputs.skip_commit && inputs.create_pr }} && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: ${{ !inputs.skip_commit && inputs.create_pr == true && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.DOCS_TOKEN || secrets.GITHUB_TOKEN }}
@@ -168,7 +177,7 @@ jobs:
           author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
 
       - name: Commit generated documentation (direct)
-        if: ${{ !inputs.skip_commit && !inputs.create_pr }} && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: ${{ !inputs.skip_commit && inputs.create_pr == false && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: |
@@ -183,3 +192,23 @@ jobs:
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
           commit_author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+
+      - name: Fallback commit (if auto-commit fails)
+        if: ${{ !inputs.skip_commit && inputs.create_pr == false && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: |
+          if git diff --quiet HEAD -- docs/; then
+            echo "No documentation changes to commit"
+          else
+            echo "Committing documentation changes manually..."
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add docs/
+            git commit -m "📚 Auto-generate documentation from Go source code
+
+            - Updated API documentation
+            - Generated examples from source
+            - Updated references
+
+            [skip ci]" || echo "Commit failed or no changes"
+            git push || echo "Push failed"
+          fi
