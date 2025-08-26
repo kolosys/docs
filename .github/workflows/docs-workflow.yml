@@ -8,21 +8,21 @@ on:
   workflow_call:
     inputs:
       repository_name:
-        description: 'Name of the repository'
+        description: "Name of the repository"
         required: true
         type: string
       go_version:
-        description: 'Go version to use'
+        description: "Go version to use"
         required: false
         type: string
-        default: '1.22'
+        default: "1.22"
       generate_examples:
-        description: 'Whether to generate examples documentation'
+        description: "Whether to generate examples documentation"
         required: false
         type: boolean
         default: true
       skip_commit:
-        description: 'Skip committing generated documentation'
+        description: "Skip committing generated documentation"
         required: false
         type: boolean
         default: false
@@ -34,7 +34,7 @@ permissions:
 jobs:
   generate-docs:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -50,14 +50,14 @@ jobs:
       - name: Download Kolosys documentation tools
         run: |
           echo "📥 Downloading Kolosys documentation tools..."
-          
+
           # Create temp directory for tools
           mkdir -p .kolosys-docs
-          
+
           # Download the shared documentation generator
           curl -sSL https://raw.githubusercontent.com/kolosys/docs/main/shared/scripts/generate-docs.go \
             -o .kolosys-docs/generate-docs.go
-          
+
           # Download shared templates if they don't exist
           if [ ! -d "docs-templates" ]; then
             echo "📄 Downloading shared templates..."
@@ -74,7 +74,7 @@ jobs:
       - name: Generate documentation configuration
         run: |
           echo "⚙️ Generating documentation configuration..."
-          
+
           # Create default config if it doesn't exist
           if [ ! -f "docs-config.json" ] && [ ! -f "kolosys-docs.json" ]; then
             echo "📝 Creating default configuration..."
@@ -108,10 +108,10 @@ jobs:
       - name: Build documentation
         run: |
           echo "🚀 Building ${{ inputs.repository_name }} documentation..."
-          
+
           # Run the documentation generator
           go run .kolosys-docs/generate-docs.go
-          
+
           # Copy templates if they exist
           if [ -d "docs-templates" ]; then
             echo "📄 Copying documentation templates..."
@@ -140,13 +140,13 @@ jobs:
         with:
           commit_message: |
             📚 Auto-generate documentation from Go source code
-            
+
             - Updated API documentation
             - Generated examples from source
             - Updated references
-            
+
             [skip ci]
-          file_pattern: 'docs/**'
-          commit_user_name: 'github-actions[bot]'
-          commit_user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_author: 'github-actions[bot] <github-actions[bot]@users.noreply.github.com>'
+          file_pattern: "docs/**"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
+          commit_author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
