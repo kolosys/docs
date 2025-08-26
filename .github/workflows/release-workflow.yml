@@ -1,0 +1,70 @@
+# Reusable CI Workflow
+# Usage: Copy this to your repository's .github/workflows/ci.yml
+# or reference it as a reusable workflow
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+  workflow_call:
+    inputs:
+      repository_name:
+        description: "Name of the repository"
+        required: true
+        type: string
+      go_version:
+        description: "Go version to use"
+        required: false
+        type: string
+        default: "1.22"
+    secrets:
+      app_id:
+        description: "GitHub App ID for authentication"
+        required: true
+      app_private_key:
+        description: "GitHub App private key for authentication"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.app_id }}
+          private-key: ${{ secrets.app_private_key }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Generate Changelog
+        uses: heinrichreimer/github-changelog-generator-action@v2.3
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Commit Changelog
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update Changelog [skip ci]"
+          file_pattern: "CHANGELOG.md"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
+          commit_author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+          push_options: "--force-with-lease"
+  
