@@ -31,14 +31,13 @@ on:
         required: false
         type: boolean
         default: false
+    secrets:
       app_id:
         description: "GitHub App ID for authentication"
         required: true
-        type: string
       app_private_key:
         description: "GitHub App private key for authentication"
         required: true
-        type: string
 
 # Permissions required for auto-committing generated documentation
 permissions:
@@ -50,31 +49,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Validate inputs
-        run: |
-          echo "app_id: ${{ inputs.app_id }}"
-          echo "app_private_key: ${{ inputs.app_private_key }}"
-          if [ -z "${{ inputs.app_id }}" ]; then
-            echo "app_id is required"
-            exit 1
-          fi
-          if [ -z "${{ inputs.app_private_key }}" ]; then
-            echo "app_private_key is required"
-            exit 1
-          fi
-
       - name: Generate GitHub App Token
         id: app-token
         uses: actions/create-github-app-token@v1
         with:
-          app-id: ${{ inputs.app_id }}
-          private-key: ${{ inputs.app_private_key }}
+          app-id: ${{ secrets.app_id }}
+          private-key: ${{ secrets.app_private_key }}
 
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -174,7 +160,7 @@ jobs:
         if: ${{ !inputs.skip_commit && inputs.create_pr == true && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ steps.app-token.outputs.token || secrets.ADMIN_TOKEN || secrets.DOCS_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           commit-message: |
             📚 Auto-generate documentation from Go source code
 
