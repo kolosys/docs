@@ -107,10 +107,22 @@ jobs:
         run: go mod download
 
       - name: Run tests
-        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+        id: tests
+        run: |
+          # Check if covdata tool exists (missing in Go 1.25rc)
+          if go tool -n | grep -q "covdata"; then
+            echo "Running tests with coverage..."
+            go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+            echo "coverage_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "covdata tool not available in Go ${{ matrix.go-version }}, running tests without coverage profile"
+            go test -v -race ./...
+            echo "coverage_available=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
+        if: steps.tests.outputs.coverage_available == 'true'
         with:
           file: ./coverage.txt
           flags: unittests
