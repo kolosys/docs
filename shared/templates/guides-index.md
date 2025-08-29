@@ -28,10 +28,9 @@ In-depth guides and best practices for {{.Name}}.
 
 ### {{.Name}}
 
-- [{{.Name}} Best Practices]({{.Name}}/best-practices.md)
-- [Common Patterns]({{.Name}}/patterns.md)
-- [Migration Guide]({{.Name}}/migration.md)
-  {{- end}}
+- [{{.Name}} Best Practices]({{.Name}}-best-practices.md)
+- [Common Patterns]({{.Name}}-patterns.md)
+{{- end}}
 
 ## Community Resources
 

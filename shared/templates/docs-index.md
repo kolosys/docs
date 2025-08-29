@@ -26,10 +26,10 @@ In-depth guides and best practices.
 
 {{.Description}}
 
-- [Package Overview](packages/{{.Name}}/README.md)
-- [API Reference](api-reference/{{.Name}}/api-reference.md)
+- [Package Overview](packages/{{.Name}}.md)
+- [API Reference](api-reference/{{.Name}}.md)
 - [Examples](examples/{{.Name}}/README.md)
-- [Best Practices](guides/{{.Name}}/best-practices.md)
+- [Best Practices](guides/{{.Name}}-best-practices.md)
 {{- end}}
 
 ## External Resources

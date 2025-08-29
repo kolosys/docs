@@ -9,11 +9,11 @@ This section contains detailed API documentation for all packages. For package o
 ## Package APIs
 
 {{- range .Packages}}
-### [{{.Name}}]({{.Name}}/api-reference.md)
+### [{{.Name}}]({{.Name}}.md)
 
 {{.Description}}
 
-**[→ Full API Documentation]({{.Name}}/api-reference.md)**
+**[→ Full API Documentation]({{.Name}}.md)**
 
 Key APIs:
 - Types and interfaces

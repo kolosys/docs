@@ -230,25 +230,27 @@ func (g *DocGenerator) GeneratePackageDocs(packageName string) error {
 		return fmt.Errorf("failed to parse package: %w", err)
 	}
 
-	// Generate package overview in packages directory
-	packagesDir := filepath.Join(g.config.Docs.DocsDir, "packages", packageName)
+	// Generate package overview as single file in packages directory
+	packagesDir := filepath.Join(g.config.Docs.DocsDir, "packages")
 	if err := os.MkdirAll(packagesDir, 0755); err != nil {
 		return fmt.Errorf("failed to create packages directory: %w", err)
 	}
 
-	// Generate package README (overview, installation, quick start)
-	if err := g.generatePackageReadme(pkgDoc, packagesDir); err != nil {
-		return fmt.Errorf("failed to generate package README: %w", err)
+	// Generate package README as packages/packagename.md
+	packageFile := filepath.Join(packagesDir, packageName+".md")
+	if err := g.generatePackageMarkdown(pkgDoc, packageFile); err != nil {
+		return fmt.Errorf("failed to generate package markdown: %w", err)
 	}
 
-	// Generate API reference in api-reference directory (detailed API docs only)
-	apiDir := filepath.Join(g.config.Docs.DocsDir, "api-reference", packageName)
+	// Generate API reference as single file in api-reference directory
+	apiDir := filepath.Join(g.config.Docs.DocsDir, "api-reference")
 	if err := os.MkdirAll(apiDir, 0755); err != nil {
 		return fmt.Errorf("failed to create API directory: %w", err)
 	}
 
-	// Generate detailed API reference (no README in api-reference directory)
-	if err := g.generateAPIReference(pkgDoc, apiDir); err != nil {
+	// Generate detailed API reference as api-reference/packagename.md
+	apiFile := filepath.Join(apiDir, packageName+".md")
+	if err := g.generateAPIMarkdown(pkgDoc, apiFile); err != nil {
 		return fmt.Errorf("failed to generate API reference: %w", err)
 	}
 
@@ -262,8 +264,8 @@ func (g *DocGenerator) GeneratePackageDocs(packageName string) error {
 		return fmt.Errorf("failed to generate examples: %w", err)
 	}
 
-	// Generate guides structure in guides directory
-	guidesDir := filepath.Join(g.config.Docs.DocsDir, "guides", packageName)
+	// Generate guides as flat files in guides directory
+	guidesDir := filepath.Join(g.config.Docs.DocsDir, "guides")
 	if err := os.MkdirAll(guidesDir, 0755); err != nil {
 		return fmt.Errorf("failed to create guides directory: %w", err)
 	}
@@ -532,7 +534,7 @@ func (g *DocGenerator) getValueDecl(spec *ast.ValueSpec) string {
 	return ""
 }
 
-func (g *DocGenerator) generatePackageReadme(pkg *PackageDoc, dir string) error {
+func (g *DocGenerator) generatePackageMarkdown(pkg *PackageDoc, filePath string) error {
 	tmpl := `# {{ .Name }}
 
 {{ .Doc }}
@@ -560,20 +562,26 @@ func main() {
 {{- if .Functions }}
 ### Functions
 {{- range .Functions }}
-- [{{ .Name }}](api-reference.md#{{ .Name | lower }}) - {{ .Doc | truncate }}
+- [{{ .Name }}](../api-reference/{{ $.Name }}.md#{{ .Name | lower }}) - {{ .Doc | truncate }}
 {{- end }}
 {{- end }}
 
 {{- if .Types }}
 ### Types  
 {{- range .Types }}
-- [{{ .Name }}](api-reference.md#{{ .Name | lower }}) - {{ .Doc | truncate }}
+- [{{ .Name }}](../api-reference/{{ $.Name }}.md#{{ .Name | lower }}) - {{ .Doc | truncate }}
 {{- end }}
 {{- end }}
 
 ## Examples
 
-See [examples](examples.md) for detailed usage examples.
+See [examples](../examples/{{ .Name }}/README.md) for detailed usage examples.
+
+## Resources
+
+- [API Reference](../api-reference/{{ .Name }}.md) - Complete API documentation
+- [Examples](../examples/{{ .Name }}/README.md) - Working examples
+- [Best Practices](../guides/{{ .Name }}-best-practices.md) - Recommended patterns
 `
 
 	funcMap := template.FuncMap{
@@ -591,7 +599,7 @@ See [examples](examples.md) for detailed usage examples.
 		return err
 	}
 
-	file, err := os.Create(filepath.Join(dir, "README.md"))
+	file, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
@@ -600,7 +608,7 @@ See [examples](examples.md) for detailed usage examples.
 	return t.Execute(file, pkg)
 }
 
-func (g *DocGenerator) generateAPIReference(pkg *PackageDoc, dir string) error {
+func (g *DocGenerator) generateAPIMarkdown(pkg *PackageDoc, filePath string) error {
 	tmpl := `# {{ .Name }} API Reference
 
 {{- if .Functions }}
@@ -714,7 +722,7 @@ func (g *DocGenerator) generateAPIReference(pkg *PackageDoc, dir string) error {
 		return err
 	}
 
-	file, err := os.Create(filepath.Join(dir, "api-reference.md"))
+	file, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
@@ -1179,9 +1187,9 @@ func (g *DocGenerator) generateTemplateFile(templateName, outputPath string, dat
 
 // generatePackageGuides creates guide stubs for a package
 func (g *DocGenerator) generatePackageGuides(pkg *PackageDoc, dir string) error {
-	// Create basic guide files for the package
+	// Create basic guide files for the package with flattened names
 	guides := map[string]string{
-		"best-practices.md": fmt.Sprintf(`# %s Best Practices
+		fmt.Sprintf("%s-best-practices.md", pkg.Name): fmt.Sprintf(`# %s Best Practices
 
 ## Overview
 
@@ -1206,7 +1214,7 @@ Best practices for using %s effectively.
 - Debugging tips
 `, pkg.Name, pkg.Name),
 
-		"patterns.md": fmt.Sprintf(`# %s Common Patterns
+		fmt.Sprintf("%s-patterns.md", pkg.Name): fmt.Sprintf(`# %s Common Patterns
 
 ## Overview
 

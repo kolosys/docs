@@ -86,9 +86,6 @@ jobs:
             # Download common templates
             curl -sSL https://raw.githubusercontent.com/kolosys/.actions/main/shared/templates/getting-started.md \
               -o docs-templates/getting-started.md 2>/dev/null || echo "No getting-started template"
-            
-            curl -sSL https://raw.githubusercontent.com/kolosys/.actions/main/shared/templates/installation.md \
-              -o docs-templates/installation.md 2>/dev/null || echo "No installation template"
           fi
 
       - name: Generate documentation configuration

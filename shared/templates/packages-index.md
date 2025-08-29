@@ -5,14 +5,14 @@ Overview of all packages in {{.Name}}.
 ## Available Packages
 
 {{- range .Packages}}
-### [{{.Name}}]({{.Name}}/README.md)
+### [{{.Name}}]({{.Name}}.md)
 
 {{.Description}}
 
-- [Package Overview]({{.Name}}/README.md) - Installation, quick start, and overview
-- [API Reference](../api-reference/{{.Name}}/api-reference.md) - Detailed API documentation
+- [Package Overview]({{.Name}}.md) - Installation, quick start, and overview
+- [API Reference](../api-reference/{{.Name}}.md) - Detailed API documentation
 - [Examples](../examples/{{.Name}}/README.md) - Working examples and tutorials
-- [Best Practices](../guides/{{.Name}}/best-practices.md) - Recommended usage patterns
+- [Best Practices](../guides/{{.Name}}-best-practices.md) - Recommended usage patterns
 
 {{- end}}
 
