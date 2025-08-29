@@ -609,7 +609,7 @@ See [examples](../examples/{{ .Name }}/README.md) for detailed usage examples.
 }
 
 func (g *DocGenerator) generateAPIMarkdown(pkg *PackageDoc, filePath string) error {
-	tmpl := `# {{ .Name }} API Reference
+	tmpl := `# {{ .Name }} API
 
 {{- if .Functions }}
 ## Functions
@@ -1108,8 +1108,13 @@ func (g *DocGenerator) generateDocumentationIndexes() error {
 		return fmt.Errorf("failed to generate main docs index: %w", err)
 	}
 
-	// Generate common guide files
-	if err := g.generateTemplateFile("contributing.md",
+	// Generate GitBook SUMMARY.md for navigation order
+	if err := g.generateGitBookSummary(templateData); err != nil {
+		return fmt.Errorf("failed to generate GitBook summary: %w", err)
+	}
+
+	// Generate common guide files (only if they don't exist)
+	if err := g.generatePreservableTemplateFile("contributing.md",
 		filepath.Join(g.config.Docs.DocsDir, "guides", "contributing.md"), templateData); err != nil {
 		// Not critical if this fails
 		if g.config.Output.Verbose {
@@ -1117,7 +1122,7 @@ func (g *DocGenerator) generateDocumentationIndexes() error {
 		}
 	}
 
-	if err := g.generateTemplateFile("faq.md",
+	if err := g.generatePreservableTemplateFile("faq.md",
 		filepath.Join(g.config.Docs.DocsDir, "guides", "faq.md"), templateData); err != nil {
 		// Not critical if this fails
 		if g.config.Output.Verbose {
@@ -1185,7 +1190,21 @@ func (g *DocGenerator) generateTemplateFile(templateName, outputPath string, dat
 	return nil
 }
 
-// generatePackageGuides creates guide stubs for a package
+// generatePreservableTemplateFile processes a template and writes it to a file only if it doesn't exist
+func (g *DocGenerator) generatePreservableTemplateFile(templateName, outputPath string, data interface{}) error {
+	// Check if output file already exists - if so, skip it to preserve manual content
+	if _, err := os.Stat(outputPath); err == nil {
+		if g.config.Output.Verbose {
+			fmt.Printf("📝 Skipped existing file: %s (preserving manual content)\n", filepath.Base(outputPath))
+		}
+		return nil
+	}
+
+	// File doesn't exist, so generate it using the normal template process
+	return g.generateTemplateFile(templateName, outputPath, data)
+}
+
+// generatePackageGuides creates guide stubs for a package only if they don't exist
 func (g *DocGenerator) generatePackageGuides(pkg *PackageDoc, dir string) error {
 	// Create basic guide files for the package with flattened names
 	guides := map[string]string{
@@ -1212,6 +1231,12 @@ Best practices for using %s effectively.
 - Error handling strategies
 - Recovery patterns
 - Debugging tips
+
+<!-- 
+GUIDE CONTENT NOTICE:
+This file is only created if it doesn't exist. Once created, it won't be overwritten
+by the documentation generator, so you can safely edit and maintain the content.
+-->
 `, pkg.Name, pkg.Name),
 
 		fmt.Sprintf("%s-patterns.md", pkg.Name): fmt.Sprintf(`# %s Common Patterns
@@ -1243,18 +1268,115 @@ Common usage patterns and examples for %s.
 - Integration with other packages
 - Middleware patterns
 - Testing patterns
+
+<!-- 
+GUIDE CONTENT NOTICE:
+This file is only created if it doesn't exist. Once created, it won't be overwritten
+by the documentation generator, so you can safely edit and maintain the content.
+-->
 `, pkg.Name, pkg.Name),
 	}
 
 	for filename, content := range guides {
 		filepath := filepath.Join(dir, filename)
+
+		// Check if file already exists - if so, skip it to preserve manual content
+		if _, err := os.Stat(filepath); err == nil {
+			if g.config.Output.Verbose {
+				fmt.Printf("📝 Skipped existing guide: %s (preserving manual content)\n", filename)
+			}
+			continue
+		}
+
+		// Only create the file if it doesn't exist
 		if err := os.WriteFile(filepath, []byte(content), 0644); err != nil {
 			return fmt.Errorf("failed to write guide %s: %w", filename, err)
 		}
+
+		if g.config.Output.Verbose {
+			fmt.Printf("📚 Created new guide stub: %s\n", filename)
+		}
 	}
 
-	if g.config.Output.Verbose {
-		fmt.Printf("📚 Generated guide stubs for %s\n", pkg.Name)
+	return nil
+}
+
+// generateGitBookSummary creates SUMMARY.md for GitBook navigation control
+func (g *DocGenerator) generateGitBookSummary(data interface{}) error {
+	templateData := data.(struct {
+		Repository RepositoryConfig
+		Packages   []PackageConfig
+		ImportPath string
+		Owner      string
+		Name       string
+		Config     Config
+	})
+
+	summaryContent := `# Table of contents
+
+* [Introduction](README.md)
+* [Getting Started](getting-started.md)
+
+## Packages
+
+`
+	// Add each package
+	for _, pkg := range templateData.Packages {
+		summaryContent += fmt.Sprintf("* [%s](packages/%s.md)\n", pkg.Name, pkg.Name)
+	}
+
+	summaryContent += `
+## API Reference
+
+* [Overview](api-reference/README.md)
+`
+	// Add API reference for each package
+	for _, pkg := range templateData.Packages {
+		summaryContent += fmt.Sprintf("* [%s API](api-reference/%s.md)\n", pkg.Name, pkg.Name)
+	}
+
+	summaryContent += `
+## Guides
+
+* [Overview](guides/README.md)
+* [Contributing](guides/contributing.md)
+* [FAQ](guides/faq.md)
+`
+	// Add best practices as index to each package's guide section
+	for _, pkg := range templateData.Packages {
+		summaryContent += fmt.Sprintf("* [%s Best Practices](guides/%s-best-practices.md)\n", pkg.Name, pkg.Name)
+		summaryContent += fmt.Sprintf("  * [%s Patterns](guides/%s-patterns.md)\n", pkg.Name, pkg.Name)
+	}
+
+	summaryContent += `
+## Examples
+
+* [Overview](examples/README.md)
+`
+	// Add examples for each package
+	for _, pkg := range templateData.Packages {
+		summaryContent += fmt.Sprintf("* [%s Examples](examples/%s/README.md)\n", pkg.Name, pkg.Name)
+		summaryContent += fmt.Sprintf("  * [Basic Examples](examples/%s/basic.md)\n", pkg.Name)
+		summaryContent += fmt.Sprintf("  * [Advanced Examples](examples/%s/advanced.md)\n", pkg.Name)
+	}
+
+	// Write SUMMARY.md only if it doesn't exist (preserve manual navigation order)
+	summaryPath := filepath.Join(g.config.Docs.DocsDir, "SUMMARY.md")
+
+	// Check if SUMMARY.md already exists - if so, skip it to preserve manual order
+	if _, err := os.Stat(summaryPath); err == nil {
+		if g.config.Output.Verbose {
+			fmt.Printf("📝 Skipped existing SUMMARY.md (preserving manual navigation order)\n")
+		}
+	} else {
+		// Only create the file if it doesn't exist
+		if err := os.WriteFile(summaryPath, []byte(summaryContent), 0644); err != nil {
+			return fmt.Errorf("failed to write SUMMARY.md: %w", err)
+		}
+
+		if g.config.Output.Verbose {
+			fmt.Printf("📄 Generated GitBook SUMMARY.md\n")
+		}
 	}
 
 	return nil
