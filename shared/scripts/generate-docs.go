@@ -63,14 +63,14 @@ type DocGenerator struct {
 
 // PackageDoc represents documentation for a package
 type PackageDoc struct {
-	Name        string
-	ImportPath  string
-	Doc         string
-	Functions   []FunctionDoc
-	Types       []TypeDoc
-	Constants   []ValueDoc
-	Variables   []ValueDoc
-	Examples    []ExampleDoc
+	Name       string
+	ImportPath string
+	Doc        string
+	Functions  []FunctionDoc
+	Types      []TypeDoc
+	Constants  []ValueDoc
+	Variables  []ValueDoc
+	Examples   []ExampleDoc
 }
 
 // FunctionDoc represents a function's documentation
@@ -86,11 +86,11 @@ type TypeDoc struct {
 	Name       string
 	Doc        string
 	Decl       string
-	Kind       string        // "struct", "interface", "type", etc.
-	Fields     []FieldDoc    // For structs
+	Kind       string     // "struct", "interface", "type", etc.
+	Fields     []FieldDoc // For structs
 	Methods    []FunctionDoc
 	Examples   []ExampleDoc
-	Underlying string        // For type aliases
+	Underlying string // For type aliases
 }
 
 // FieldDoc represents a struct field
@@ -128,8 +128,14 @@ func main() {
 	}
 
 	if config.Output.Verbose {
-		fmt.Printf("🚀 Generating documentation for %s/%s (%d packages)...\n", 
+		fmt.Printf("🚀 Generating documentation for %s/%s (%d packages)...\n",
 			config.Repository.Owner, config.Repository.Name, len(config.Packages))
+	}
+
+	// Create docs directory structure
+	if err := generator.createDocumentationStructure(); err != nil {
+		fmt.Printf("❌ Failed to create docs directory structure: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Process shared templates if they exist
@@ -139,10 +145,10 @@ func main() {
 		// Continue anyway - templates are optional
 	}
 
-	// Create docs directory if it doesn't exist
-	if err := os.MkdirAll(config.Docs.DocsDir, 0755); err != nil {
-		fmt.Printf("❌ Failed to create docs directory: %v\n", err)
-		os.Exit(1)
+	// Generate structured documentation indexes
+	if err := generator.generateDocumentationIndexes(); err != nil {
+		fmt.Printf("❌ Error generating documentation indexes: %v\n", err)
+		// Continue anyway - indexes are optional but recommended
 	}
 
 	// Copy repository README.md to docs directory
@@ -164,13 +170,13 @@ func main() {
 			fmt.Printf("✅ Generated documentation for %s\n", pkg.Name)
 		}
 	}
-	
+
 	fmt.Printf("🎉 Documentation generation complete for %s!\n", config.Repository.Name)
 }
 
 func loadConfig() (Config, error) {
 	var config Config
-	
+
 	// Try multiple config file locations
 	configPaths := []string{
 		"docs-config.json",
@@ -178,7 +184,7 @@ func loadConfig() (Config, error) {
 		".config/docs.json",
 		"kolosys-docs.json", // New centralized naming
 	}
-	
+
 	var configFile string
 	for _, path := range configPaths {
 		if _, err := os.Stat(path); err == nil {
@@ -186,21 +192,21 @@ func loadConfig() (Config, error) {
 			break
 		}
 	}
-	
+
 	if configFile == "" {
 		return config, fmt.Errorf("no configuration file found. Please create docs-config.json")
 	}
-	
+
 	data, err := os.ReadFile(configFile)
 	if err != nil {
 		return config, fmt.Errorf("failed to read config file %s: %w", configFile, err)
 	}
-	
+
 	err = json.Unmarshal(data, &config)
 	if err != nil {
 		return config, fmt.Errorf("failed to parse config file %s: %w", configFile, err)
 	}
-	
+
 	// Apply defaults for missing values
 	if config.Docs.RootDir == "" {
 		config.Docs.RootDir = "."
@@ -209,10 +215,10 @@ func loadConfig() (Config, error) {
 		config.Docs.DocsDir = "docs"
 	}
 	if config.Repository.ImportPath == "" {
-		config.Repository.ImportPath = fmt.Sprintf("github.com/%s/%s", 
+		config.Repository.ImportPath = fmt.Sprintf("github.com/%s/%s",
 			config.Repository.Owner, config.Repository.Name)
 	}
-	
+
 	fmt.Printf("📄 Loaded configuration from %s\n", configFile)
 	return config, nil
 }
@@ -224,25 +230,40 @@ func (g *DocGenerator) GeneratePackageDocs(packageName string) error {
 		return fmt.Errorf("failed to parse package: %w", err)
 	}
 
-	// Create package directory
-	pkgDir := filepath.Join(g.config.Docs.DocsDir, packageName)
-	if err := os.MkdirAll(pkgDir, 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
+	// Generate API reference in api-reference directory
+	apiDir := filepath.Join(g.config.Docs.DocsDir, "api-reference", packageName)
+	if err := os.MkdirAll(apiDir, 0755); err != nil {
+		return fmt.Errorf("failed to create API directory: %w", err)
 	}
 
-	// Generate README.md
-	if err := g.generatePackageReadme(pkgDoc, pkgDir); err != nil {
-		return fmt.Errorf("failed to generate README: %w", err)
+	// Generate package overview for API reference
+	if err := g.generatePackageReadme(pkgDoc, apiDir); err != nil {
+		return fmt.Errorf("failed to generate package README: %w", err)
 	}
 
-	// Generate API reference
-	if err := g.generateAPIReference(pkgDoc, pkgDir); err != nil {
+	// Generate detailed API reference
+	if err := g.generateAPIReference(pkgDoc, apiDir); err != nil {
 		return fmt.Errorf("failed to generate API reference: %w", err)
 	}
 
-	// Generate examples
-	if err := g.generateExamples(pkgDoc, pkgDir); err != nil {
+	// Generate examples in examples directory
+	examplesDir := filepath.Join(g.config.Docs.DocsDir, "examples", packageName)
+	if err := os.MkdirAll(examplesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create examples directory: %w", err)
+	}
+
+	if err := g.generateExamples(pkgDoc, examplesDir); err != nil {
 		return fmt.Errorf("failed to generate examples: %w", err)
+	}
+
+	// Generate guides structure in guides directory
+	guidesDir := filepath.Join(g.config.Docs.DocsDir, "guides", packageName)
+	if err := os.MkdirAll(guidesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create guides directory: %w", err)
+	}
+
+	if err := g.generatePackageGuides(pkgDoc, guidesDir); err != nil {
+		return fmt.Errorf("failed to generate guides: %w", err)
 	}
 
 	return nil
@@ -251,26 +272,26 @@ func (g *DocGenerator) GeneratePackageDocs(packageName string) error {
 func (g *DocGenerator) parsePackage(packageName string) (*PackageDoc, error) {
 	// Find package path - could be in root or subdirectory
 	var pkgPath string
-	
+
 	// Try different possible locations
 	possiblePaths := []string{
 		filepath.Join(g.config.Docs.RootDir, packageName),
 		filepath.Join(g.config.Docs.RootDir), // For single-package repos
 	}
-	
+
 	for _, path := range possiblePaths {
 		if _, err := os.Stat(path); err == nil {
 			pkgPath = path
 			break
 		}
 	}
-	
+
 	if pkgPath == "" {
 		return nil, fmt.Errorf("package directory not found for %s", packageName)
 	}
-	
+
 	fset := token.NewFileSet()
-	
+
 	// Create a filter function to exclude _test.go files
 	filter := func(info os.FileInfo) bool {
 		// Exclude _test.go files
@@ -280,7 +301,7 @@ func (g *DocGenerator) parsePackage(packageName string) (*PackageDoc, error) {
 		// Include all other .go files
 		return strings.HasSuffix(info.Name(), ".go")
 	}
-	
+
 	pkgs, err := parser.ParseDir(fset, pkgPath, filter, parser.ParseComments)
 	if err != nil {
 		return nil, err
@@ -299,7 +320,7 @@ func (g *DocGenerator) parsePackage(packageName string) (*PackageDoc, error) {
 	}
 
 	docPkg := doc.New(pkg, "./"+packageName, doc.AllDecls)
-	
+
 	// Convert to our structure
 	pkgDoc := &PackageDoc{
 		Name:       docPkg.Name,
@@ -316,7 +337,7 @@ func (g *DocGenerator) parsePackage(packageName string) (*PackageDoc, error) {
 		if strings.HasPrefix(f.Name, "Test") || strings.HasPrefix(f.Name, "Benchmark") {
 			continue
 		}
-		
+
 		pkgDoc.Functions = append(pkgDoc.Functions, FunctionDoc{
 			Name:      f.Name,
 			Doc:       f.Doc,
@@ -429,13 +450,13 @@ func (g *DocGenerator) getTypeKind(t *doc.Type) string {
 
 func (g *DocGenerator) getTypeFields(t *doc.Type) []FieldDoc {
 	var fields []FieldDoc
-	
+
 	if t.Decl != nil && len(t.Decl.Specs) > 0 {
 		if typeSpec, ok := t.Decl.Specs[0].(*ast.TypeSpec); ok {
 			if structType, ok := typeSpec.Type.(*ast.StructType); ok {
 				for _, field := range structType.Fields.List {
 					fieldDoc := FieldDoc{}
-					
+
 					// Get field name
 					if len(field.Names) > 0 {
 						fieldDoc.Name = field.Names[0].Name
@@ -445,32 +466,32 @@ func (g *DocGenerator) getTypeFields(t *doc.Type) []FieldDoc {
 							fieldDoc.Name = ident.Name
 						}
 					}
-					
+
 					// Get field type
 					var buf strings.Builder
 					err := format.Node(&buf, g.fset, field.Type)
 					if err == nil {
 						fieldDoc.Type = buf.String()
 					}
-					
+
 					// Get field tag
 					if field.Tag != nil {
 						fieldDoc.Tag = field.Tag.Value
 					}
-					
+
 					// Get field documentation
 					if field.Doc != nil {
 						fieldDoc.Doc = strings.TrimSpace(field.Doc.Text())
 					} else if field.Comment != nil {
 						fieldDoc.Doc = strings.TrimSpace(field.Comment.Text())
 					}
-					
+
 					fields = append(fields, fieldDoc)
 				}
 			}
 		}
 	}
-	
+
 	return fields
 }
 
@@ -498,7 +519,7 @@ func (g *DocGenerator) getValueDecl(spec *ast.ValueSpec) string {
 	if err == nil {
 		return buf.String()
 	}
-	
+
 	if len(spec.Names) > 0 {
 		return spec.Names[0].Name
 	}
@@ -702,18 +723,18 @@ func (g *DocGenerator) processSharedTemplates() error {
 	if g.config.Docs.TemplatesDir != "" {
 		templatesDir = g.config.Docs.TemplatesDir
 	}
-	
+
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
 		// No templates directory, skip processing
 		return nil
 	}
-	
+
 	// Create docs directory if it doesn't exist
 	docsDir := g.config.Docs.DocsDir
 	if err := os.MkdirAll(docsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create docs directory: %w", err)
 	}
-	
+
 	// Template data for shared templates
 	templateData := struct {
 		Repository RepositoryConfig
@@ -726,13 +747,13 @@ func (g *DocGenerator) processSharedTemplates() error {
 		Owner:      g.config.Repository.Owner,
 		Name:       g.config.Repository.Name,
 	}
-	
+
 	// Process each template file
 	templateFiles, err := filepath.Glob(filepath.Join(templatesDir, "*.md"))
 	if err != nil {
 		return fmt.Errorf("failed to find template files: %w", err)
 	}
-	
+
 	for _, templateFile := range templateFiles {
 		// Read template file
 		templateContent, err := os.ReadFile(templateFile)
@@ -740,14 +761,14 @@ func (g *DocGenerator) processSharedTemplates() error {
 			fmt.Printf("⚠️  Failed to read template %s: %v\n", templateFile, err)
 			continue
 		}
-		
+
 		// Parse and execute template
 		tmpl, err := template.New(filepath.Base(templateFile)).Parse(string(templateContent))
 		if err != nil {
 			fmt.Printf("⚠️  Failed to parse template %s: %v\n", templateFile, err)
 			continue
 		}
-		
+
 		// Create output file
 		outputFile := filepath.Join(docsDir, filepath.Base(templateFile))
 		file, err := os.Create(outputFile)
@@ -755,21 +776,21 @@ func (g *DocGenerator) processSharedTemplates() error {
 			fmt.Printf("⚠️  Failed to create output file %s: %v\n", outputFile, err)
 			continue
 		}
-		
+
 		// Execute template
 		err = tmpl.Execute(file, templateData)
 		file.Close()
-		
+
 		if err != nil {
 			fmt.Printf("⚠️  Failed to execute template %s: %v\n", templateFile, err)
 			continue
 		}
-		
+
 		if g.config.Output.Verbose {
 			fmt.Printf("📄 Processed template: %s -> %s\n", templateFile, outputFile)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -777,7 +798,7 @@ func (g *DocGenerator) generateExamples(pkg *PackageDoc, dir string) error {
 	// Try to read examples from the examples directory
 	exampleDir := filepath.Join("examples", pkg.Name)
 	exampleFile := filepath.Join(exampleDir, "main.go")
-	
+
 	var exampleContent string
 	if content, err := os.ReadFile(exampleFile); err == nil {
 		exampleContent = string(content)
@@ -803,41 +824,158 @@ func main() {
 		}
 	}
 
-	tmpl := `# {{ .Name }} Examples
+	// Generate main README for the package examples
+	readmeContent := fmt.Sprintf(`# %s Examples
 
-## Basic Usage
+## Overview
 
-` + "```go" + `
-{{ .ExampleContent }}
-` + "```" + `
+This section contains working examples demonstrating how to use %s effectively.
 
-## Advanced Examples
+## Available Examples
 
-See the [examples directory]({{ .RepoURL }}/tree/main/examples/{{ .Name }}) for more comprehensive examples.
-`
+### Basic Usage
 
-	t, err := template.New("examples").Parse(tmpl)
-	if err != nil {
-		return err
+- [Basic Operations](basic.md) - Getting started with %s
+- [Configuration](configuration.md) - Configuration options and patterns
+
+### Advanced Usage
+
+- [Advanced Patterns](advanced.md) - Complex usage scenarios
+- [Integration](integration.md) - Integration with other packages
+- [Performance](performance.md) - Performance optimization techniques
+
+## Running Examples
+
+To run the examples:
+
+`+"```bash"+`
+# Clone the repository
+git clone https://github.com/%s/%s.git
+cd %s
+
+# Run the basic example
+cd examples/%s
+go run main.go
+`+"```"+`
+
+## Source Code
+
+`+"```go"+`
+%s
+`+"```"+`
+
+## More Examples
+
+See the [GitHub examples directory](https://github.com/%s/%s/tree/main/examples/%s) for more comprehensive examples.
+`, pkg.Name, pkg.Name, pkg.Name, g.config.Repository.Owner, g.config.Repository.Name, g.config.Repository.Name, pkg.Name, exampleContent, g.config.Repository.Owner, g.config.Repository.Name, pkg.Name)
+
+	// Write the main README
+	readmePath := filepath.Join(dir, "README.md")
+	if err := os.WriteFile(readmePath, []byte(readmeContent), 0644); err != nil {
+		return fmt.Errorf("failed to write examples README: %w", err)
 	}
 
-	file, err := os.Create(filepath.Join(dir, "examples.md"))
-	if err != nil {
-		return err
-	}
-	defer file.Close()
+	// Generate basic example files
+	examples := map[string]string{
+		"basic.md": fmt.Sprintf(`# %s Basic Examples
 
-	data := struct {
-		*PackageDoc
-		ExampleContent string
-		RepoURL        string
-	}{
-		PackageDoc:     pkg,
-		ExampleContent: exampleContent,
-		RepoURL:        fmt.Sprintf("https://github.com/%s/%s", g.config.Repository.Owner, g.config.Repository.Name),
+## Getting Started
+
+Basic usage patterns for %s.
+
+### Example 1: Simple Usage
+
+`+"```go"+`
+package main
+
+import (
+    "fmt"
+    "%s"
+)
+
+func main() {
+    // Basic usage example
+    // TODO: Add actual basic usage
+    fmt.Println("Basic %s example")
+}
+`+"```"+`
+
+### Example 2: With Configuration
+
+`+"```go"+`
+package main
+
+import (
+    "fmt"
+    "%s"
+)
+
+func main() {
+    // Configuration example
+    // TODO: Add actual configuration example
+    fmt.Println("Configured %s example")
+}
+`+"```"+`
+`, pkg.Name, pkg.Name, pkg.ImportPath, pkg.Name, pkg.ImportPath, pkg.Name),
+
+		"advanced.md": fmt.Sprintf(`# %s Advanced Examples
+
+## Complex Scenarios
+
+Advanced usage patterns and integration examples.
+
+### Example 1: Advanced Configuration
+
+`+"```go"+`
+package main
+
+import (
+    "context"
+    "fmt"
+    "%s"
+)
+
+func main() {
+    // Advanced configuration example
+    // TODO: Add actual advanced example
+    fmt.Println("Advanced %s example")
+}
+`+"```"+`
+
+### Example 2: Error Handling
+
+`+"```go"+`
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "%s"
+)
+
+func main() {
+    // Error handling example
+    // TODO: Add actual error handling example
+    fmt.Println("Error handling %s example")
+}
+`+"```"+`
+`, pkg.Name, pkg.ImportPath, pkg.Name, pkg.ImportPath, pkg.Name),
 	}
 
-	return t.Execute(file, data)
+	// Write example files
+	for filename, content := range examples {
+		filepath := filepath.Join(dir, filename)
+		if err := os.WriteFile(filepath, []byte(content), 0644); err != nil {
+			return fmt.Errorf("failed to write example %s: %w", filename, err)
+		}
+	}
+
+	if g.config.Output.Verbose {
+		fmt.Printf("📖 Generated examples for %s\n", pkg.Name)
+	}
+
+	return nil
 }
 
 func (g *DocGenerator) copyRepositoryReadme() error {
@@ -879,6 +1017,223 @@ func (g *DocGenerator) copyRepositoryReadme() error {
 
 	if g.config.Output.Verbose {
 		fmt.Printf("📄 Copied %s to %s\n", readmePath, docsReadmePath)
+	}
+
+	return nil
+}
+
+// createDocumentationStructure creates the organized directory structure
+func (g *DocGenerator) createDocumentationStructure() error {
+	dirs := []string{
+		g.config.Docs.DocsDir,
+		filepath.Join(g.config.Docs.DocsDir, "api-reference"),
+		filepath.Join(g.config.Docs.DocsDir, "examples"),
+		filepath.Join(g.config.Docs.DocsDir, "guides"),
+	}
+
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+
+	if g.config.Output.Verbose {
+		fmt.Printf("📁 Created documentation directory structure\n")
+	}
+
+	return nil
+}
+
+// generateDocumentationIndexes creates index files for each main section
+func (g *DocGenerator) generateDocumentationIndexes() error {
+	// Template data for all indexes - include everything from Config
+	templateData := struct {
+		Repository RepositoryConfig
+		Packages   []PackageConfig
+		ImportPath string
+		Owner      string
+		Name       string
+		Config     Config
+	}{
+		Repository: g.config.Repository,
+		Packages:   g.config.Packages,
+		ImportPath: g.config.Repository.ImportPath,
+		Owner:      g.config.Repository.Owner,
+		Name:       g.config.Repository.Name,
+		Config:     g.config,
+	}
+
+	// Generate API Reference index
+	if err := g.generateTemplateFile("api-reference-index.md",
+		filepath.Join(g.config.Docs.DocsDir, "api-reference", "README.md"), templateData); err != nil {
+		return fmt.Errorf("failed to generate API reference index: %w", err)
+	}
+
+	// Generate Examples index
+	if err := g.generateTemplateFile("examples-index.md",
+		filepath.Join(g.config.Docs.DocsDir, "examples", "README.md"), templateData); err != nil {
+		return fmt.Errorf("failed to generate examples index: %w", err)
+	}
+
+	// Generate Guides index
+	if err := g.generateTemplateFile("guides-index.md",
+		filepath.Join(g.config.Docs.DocsDir, "guides", "README.md"), templateData); err != nil {
+		return fmt.Errorf("failed to generate guides index: %w", err)
+	}
+
+	// Generate main docs index (README for docs directory)
+	if err := g.generateTemplateFile("docs-index.md",
+		filepath.Join(g.config.Docs.DocsDir, "README.md"), templateData); err != nil {
+		return fmt.Errorf("failed to generate main docs index: %w", err)
+	}
+
+	// Generate common guide files
+	if err := g.generateTemplateFile("contributing.md",
+		filepath.Join(g.config.Docs.DocsDir, "guides", "contributing.md"), templateData); err != nil {
+		// Not critical if this fails
+		if g.config.Output.Verbose {
+			fmt.Printf("⚠️  Failed to generate contributing guide: %v\n", err)
+		}
+	}
+
+	if err := g.generateTemplateFile("faq.md",
+		filepath.Join(g.config.Docs.DocsDir, "guides", "faq.md"), templateData); err != nil {
+		// Not critical if this fails
+		if g.config.Output.Verbose {
+			fmt.Printf("⚠️  Failed to generate FAQ: %v\n", err)
+		}
+	}
+
+	if g.config.Output.Verbose {
+		fmt.Printf("📄 Generated documentation section indexes\n")
+	}
+
+	return nil
+}
+
+// generateTemplateFile processes a template and writes it to a file
+func (g *DocGenerator) generateTemplateFile(templateName, outputPath string, data interface{}) error {
+	// Try to find the template in templates directory
+	templatesDir := "docs-templates"
+	if g.config.Docs.TemplatesDir != "" {
+		templatesDir = g.config.Docs.TemplatesDir
+	}
+
+	templatePath := filepath.Join(templatesDir, templateName)
+
+	// Check if template exists
+	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
+		if g.config.Output.Verbose {
+			fmt.Printf("⚠️  Template %s not found, skipping %s\n", templateName, outputPath)
+		}
+		return nil
+	}
+
+	// Read and process template
+	templateContent, err := os.ReadFile(templatePath)
+	if err != nil {
+		return fmt.Errorf("failed to read template %s: %w", templatePath, err)
+	}
+
+	tmpl, err := template.New(templateName).Parse(string(templateContent))
+	if err != nil {
+		return fmt.Errorf("failed to parse template %s: %w", templatePath, err)
+	}
+
+	// Create output file
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("failed to create output file %s: %w", outputPath, err)
+	}
+	defer file.Close()
+
+	// Execute template
+	err = tmpl.Execute(file, data)
+	if err != nil {
+		return fmt.Errorf("failed to execute template %s: %w", templatePath, err)
+	}
+
+	if g.config.Output.Verbose {
+		fmt.Printf("📄 Generated: %s\n", outputPath)
+	}
+
+	return nil
+}
+
+// generatePackageGuides creates guide stubs for a package
+func (g *DocGenerator) generatePackageGuides(pkg *PackageDoc, dir string) error {
+	// Create basic guide files for the package
+	guides := map[string]string{
+		"best-practices.md": fmt.Sprintf(`# %s Best Practices
+
+## Overview
+
+Best practices for using %s effectively.
+
+## Performance Considerations
+
+- Performance tips and optimization strategies
+- Memory usage patterns
+- Concurrency considerations
+
+## Common Patterns
+
+- Recommended usage patterns
+- Anti-patterns to avoid
+- Integration strategies
+
+## Error Handling
+
+- Error handling strategies
+- Recovery patterns
+- Debugging tips
+`, pkg.Name, pkg.Name),
+
+		"patterns.md": fmt.Sprintf(`# %s Common Patterns
+
+## Overview
+
+Common usage patterns and examples for %s.
+
+## Basic Patterns
+
+### Pattern 1: Basic Usage
+
+`+"```go"+`
+// Example basic usage pattern
+// TODO: Add actual usage examples
+`+"```"+`
+
+## Advanced Patterns
+
+### Pattern 1: Advanced Usage
+
+`+"```go"+`
+// Example advanced usage pattern  
+// TODO: Add actual advanced examples
+`+"```"+`
+
+## Integration Patterns
+
+- Integration with other packages
+- Middleware patterns
+- Testing patterns
+`, pkg.Name, pkg.Name),
+	}
+
+	for filename, content := range guides {
+		filepath := filepath.Join(dir, filename)
+		if err := os.WriteFile(filepath, []byte(content), 0644); err != nil {
+			return fmt.Errorf("failed to write guide %s: %w", filename, err)
+		}
+	}
+
+	if g.config.Output.Verbose {
+		fmt.Printf("📚 Generated guide stubs for %s\n", pkg.Name)
 	}
 
 	return nil
