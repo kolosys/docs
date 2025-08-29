@@ -42,8 +42,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          # go-version: ${{ inputs.go_version }}
-          go-version: 1.24 # Temporary, until lint action supports go 1.25
+          go-version: ${{ inputs.go_version }}
+          # go-version: 1.24 # Temporary, until lint action supports go 1.25
 
       - name: Cache Go modules
         uses: actions/cache@v4
