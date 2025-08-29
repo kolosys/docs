@@ -57,7 +57,7 @@ jobs:
           private-key: ${{ secrets.app_private_key }}
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
@@ -68,7 +68,7 @@ jobs:
           go-version: ${{ inputs.go_version }}
 
       - name: Cache Go modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build

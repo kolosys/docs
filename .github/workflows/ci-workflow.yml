@@ -11,7 +11,7 @@ on:
         description: "Go version to use"
         required: false
         type: string
-        default: "1.22"
+        default: "1.25"
     secrets:
       app_id:
         description: "GitHub App ID for authentication"
@@ -34,7 +34,7 @@ jobs:
           private-key: ${{ secrets.app_private_key }}
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
@@ -46,7 +46,7 @@ jobs:
           go-version: 1.24 # Temporary, until lint action supports go 1.25
 
       - name: Cache Go modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
@@ -59,7 +59,7 @@ jobs:
         run: go mod download
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v8
         with:
           version: latest
           args: --fast --timeout=5m --out-format=colored-line-number
@@ -82,11 +82,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.21, 1.22, "1.23", "1.24", "1.25"]
+        go-version: ["1.21", "1.22", "1.23", "1.24", "1.25"]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v5
@@ -94,7 +94,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
 
       - name: Cache Go modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
@@ -109,36 +109,26 @@ jobs:
       - name: Run tests
         id: tests
         run: |
-          # Check if covdata tool exists (missing in Go 1.25rc)
-          if go tool -n | grep -q "covdata"; then
-            echo "Running tests with coverage..."
-            go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
-            echo "coverage_available=true" >> $GITHUB_OUTPUT
-          else
-            echo "covdata tool not available in Go ${{ matrix.go-version }}, running tests without coverage profile"
-            go test -v -race ./...
-            echo "coverage_available=false" >> $GITHUB_OUTPUT
-          fi
+          go test ./... -v -covermode=atomic -coverprofile=coverage.out
+          go tool cover -func=coverage.out
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        if: steps.tests.outputs.coverage_available == 'true'
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
         with:
-          file: ./coverage.txt
+          files: ./coverage.out
           flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
+          fail_ci_if_error: true
 
   build:
     name: Build
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.21, 1.22, "1.23", "1.24", "1.25"]
+        go-version: ["1.21", "1.22", "1.23", "1.24", "1.25"]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v5
@@ -146,7 +136,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
 
       - name: Cache Go modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
