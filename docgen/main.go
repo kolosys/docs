@@ -666,8 +666,8 @@ func main() {
 }
 
 func (g *DocGenerator) processSharedTemplates() error {
-	// Check if docs-templates directory exists
-	templatesDir := "docs-templates"
+	// Check if templates directory exists
+	templatesDir := "templates"
 	if g.config.Docs.TemplatesDir != "" {
 		templatesDir = g.config.Docs.TemplatesDir
 	}
@@ -1081,7 +1081,7 @@ func (g *DocGenerator) generateDocumentationIndexes() error {
 // generateTemplateFile processes a template and writes it to a file
 func (g *DocGenerator) generateTemplateFile(templateName, outputPath string, data interface{}) error {
 	// Try to find the template in templates directory
-	templatesDir := "docs-templates"
+	templatesDir := "templates"
 	if g.config.Docs.TemplatesDir != "" {
 		templatesDir = g.config.Docs.TemplatesDir
 	}

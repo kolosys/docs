@@ -84,18 +84,9 @@ jobs:
         run: |
           echo "📥 Installing Kolosys documentation tools..."
 
-          # Install the documentation generator directly from GitHub
-          go install github.com/kolosys/.actions/docgen@main
-
-          # Download shared templates if they don't exist
-          if [ ! -d "docs-templates" ]; then
-            echo "📄 Downloading shared templates..."
-            mkdir -p docs-templates
-            
-            # Download common templates
-            curl -sSL https://raw.githubusercontent.com/kolosys/.actions/main/docgen/templates/getting-started.md \
-              -o docs-templates/getting-started.md 2>/dev/null || echo "No getting-started template"
-          fi
+          # Clone the documentation generator from GitHub (includes templates)
+          # Use the GitHub App token for private repository access
+          git clone --depth 1 --branch main https://${{ steps.app-token.outputs.token }}@github.com/kolosys/.actions.git .kolosys-tools
 
       - name: Generate documentation configuration
         run: |
@@ -135,8 +126,8 @@ jobs:
         run: |
           echo "🚀 Building ${{ inputs.repository_name }} documentation..."
 
-          # Run the installed documentation generator
-          docgen
+          # Run the documentation generator from the cloned repository
+          go run .kolosys-tools/docgen
 
       - name: Verify generated documentation
         run: |
@@ -151,7 +142,7 @@ jobs:
       - name: Cleanup
         run: |
           # Remove temporary files
-          rm -rf .kolosys-docs
+          rm -rf .kolosys-tools
 
       - name: Debug workflow inputs
         run: |

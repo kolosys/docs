@@ -43,7 +43,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go_version }}
-          # go-version: 1.24 # Temporary, until lint action supports go 1.24
 
       - name: Cache Go modules
         uses: actions/cache@v4
@@ -109,7 +108,7 @@ jobs:
       - name: Run tests
         id: tests
         run: |
-          go test ./... -v -covermode=atomic -coverprofile=coverage.out
+          go test ./... -v -covermode=atomic -coverprofile=coverage.out -race
           go tool cover -func=coverage.out
 
       - name: Upload to Codecov
