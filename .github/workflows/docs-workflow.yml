@@ -80,16 +80,12 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Download Kolosys documentation tools
+      - name: Install Kolosys documentation tools
         run: |
-          echo "📥 Downloading Kolosys documentation tools..."
+          echo "📥 Installing Kolosys documentation tools..."
 
-          # Create temp directory for tools
-          mkdir -p .kolosys-docs
-
-          # Download the shared documentation generator
-          curl -sSL https://raw.githubusercontent.com/kolosys/.actions/main/docgen/cmd/generate-docs.go \
-            -o .kolosys-docs/generate-docs.go
+          # Install the documentation generator directly from GitHub
+          go install github.com/kolosys/.actions/docgen@main
 
           # Download shared templates if they don't exist
           if [ ! -d "docs-templates" ]; then
@@ -139,8 +135,8 @@ jobs:
         run: |
           echo "🚀 Building ${{ inputs.repository_name }} documentation..."
 
-          # Run the documentation generator (now processes templates automatically)
-          go run .kolosys-docs/generate-docs.go
+          # Run the installed documentation generator
+          docgen
 
       - name: Verify generated documentation
         run: |
