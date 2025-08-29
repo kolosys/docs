@@ -11,7 +11,7 @@ on:
         description: "Go version to use"
         required: false
         type: string
-        default: "1.25"
+        default: "1.24"
     secrets:
       app_id:
         description: "GitHub App ID for authentication"
@@ -43,7 +43,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go_version }}
-          # go-version: 1.24 # Temporary, until lint action supports go 1.25
+          # go-version: 1.24 # Temporary, until lint action supports go 1.24
 
       - name: Cache Go modules
         uses: actions/cache@v4
@@ -82,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ["1.21", "1.22", "1.23", "1.24", "1.25"]
+        go-version: ["1.21", "1.22", "1.23", "1.24"]
 
     steps:
       - name: Checkout code
@@ -108,9 +108,7 @@ jobs:
 
       - name: Run tests
         id: tests
-        # GOTOOLCHAIN > https://github.com/golang/go/issues/75031
         run: |
-          go env -w GOTOOLCHAIN=go1.25.0+auto
           go test ./... -v -covermode=atomic -coverprofile=coverage.out
           go tool cover -func=coverage.out
 
@@ -126,7 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ["1.21", "1.22", "1.23", "1.24", "1.25"]
+        go-version: ["1.21", "1.22", "1.23", "1.24"]
 
     steps:
       - name: Checkout code

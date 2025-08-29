@@ -15,7 +15,7 @@ on:
         description: "Go version to use"
         required: false
         type: string
-        default: "1.25"
+        default: "1.24"
       generate_examples:
         description: "Whether to generate examples documentation"
         required: false
