@@ -264,13 +264,24 @@ func (g *DocGenerator) GeneratePackageDocs(packageName string) error {
 		return fmt.Errorf("failed to generate examples: %w", err)
 	}
 
-	// Generate guides as flat files in guides directory
-	guidesDir := filepath.Join(g.config.Docs.DocsDir, "guides")
-	if err := os.MkdirAll(guidesDir, 0755); err != nil {
-		return fmt.Errorf("failed to create guides directory: %w", err)
+	// Generate getting-started file for package in getting-started directory
+	gettingStartedDir := filepath.Join(g.config.Docs.DocsDir, "getting-started")
+	if err := os.MkdirAll(gettingStartedDir, 0755); err != nil {
+		return fmt.Errorf("failed to create getting-started directory: %w", err)
 	}
 
-	if err := g.generatePackageGuides(pkgDoc, guidesDir); err != nil {
+	gettingStartedFile := filepath.Join(gettingStartedDir, packageName+".md")
+	if err := g.generateGettingStartedMarkdown(pkgDoc, gettingStartedFile); err != nil {
+		return fmt.Errorf("failed to generate getting-started file: %w", err)
+	}
+
+	// Generate guides in package-specific directory structure
+	packageGuidesDir := filepath.Join(g.config.Docs.DocsDir, "guides", packageName)
+	if err := os.MkdirAll(packageGuidesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create package guides directory: %w", err)
+	}
+
+	if err := g.generatePackageGuides(pkgDoc, packageGuidesDir); err != nil {
 		return fmt.Errorf("failed to generate guides: %w", err)
 	}
 
@@ -581,7 +592,7 @@ See [examples](../examples/{{ .Name }}/README.md) for detailed usage examples.
 
 - [API Reference](../api-reference/{{ .Name }}.md) - Complete API documentation
 - [Examples](../examples/{{ .Name }}/README.md) - Working examples
-- [Best Practices](../guides/{{ .Name }}-best-practices.md) - Recommended patterns
+- [Best Practices](../guides/{{ .Name }}/best-practices.md) - Recommended patterns
 `
 
 	funcMap := template.FuncMap{
@@ -718,6 +729,80 @@ func (g *DocGenerator) generateAPIMarkdown(pkg *PackageDoc, filePath string) err
 	}
 
 	t, err := template.New("api").Funcs(funcMap).Parse(tmpl)
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return t.Execute(file, pkg)
+}
+
+func (g *DocGenerator) generateGettingStartedMarkdown(pkg *PackageDoc, filePath string) error {
+	tmpl := `# Getting Started with {{ .Name }}
+
+{{ .Doc }}
+
+## Installation
+
+` + "```bash" + `
+go get {{ .ImportPath }}
+` + "```" + `
+
+## Quick Start
+
+` + "```go" + `
+package main
+
+import "{{ .ImportPath }}"
+
+func main() {
+    // Your code here
+    fmt.Println("Hello from {{ .Name }}!")
+}
+` + "```" + `
+
+## Basic Usage
+
+{{- if .Functions }}
+### Functions
+{{- range .Functions }}
+- **{{ .Name }}** - {{ .Doc | oneline }}
+{{- end }}
+{{- end }}
+
+{{- if .Types }}
+### Types  
+{{- range .Types }}
+- **{{ .Name }}** - {{ .Doc | oneline }}
+{{- end }}
+{{- end }}
+
+## Next Steps
+
+- [Package Overview](../packages/{{ .Name }}.md) - Complete package information
+- [API Reference](../api-reference/{{ .Name }}.md) - Detailed API documentation
+- [Examples](../examples/{{ .Name }}/README.md) - Working examples and tutorials  
+- [Best Practices](../guides/{{ .Name }}/best-practices.md) - Recommended usage patterns
+- [Common Patterns](../guides/{{ .Name }}/patterns.md) - Common implementation patterns
+`
+
+	funcMap := template.FuncMap{
+		"oneline": func(s string) string {
+			// Convert to single line and trim
+			lines := strings.Split(strings.TrimSpace(s), "\n")
+			if len(lines) > 0 {
+				return strings.TrimSpace(lines[0])
+			}
+			return ""
+		},
+	}
+
+	t, err := template.New("getting-started").Funcs(funcMap).Parse(tmpl)
 	if err != nil {
 		return err
 	}
@@ -1040,6 +1125,7 @@ func (g *DocGenerator) copyRepositoryReadme() error {
 func (g *DocGenerator) createDocumentationStructure() error {
 	dirs := []string{
 		g.config.Docs.DocsDir,
+		filepath.Join(g.config.Docs.DocsDir, "getting-started"),
 		filepath.Join(g.config.Docs.DocsDir, "packages"),
 		filepath.Join(g.config.Docs.DocsDir, "api-reference"),
 		filepath.Join(g.config.Docs.DocsDir, "examples"),
@@ -1078,6 +1164,12 @@ func (g *DocGenerator) generateDocumentationIndexes() error {
 		Config:     g.config,
 	}
 
+	// Generate Getting Started index
+	if err := g.generateTemplateFile("getting-started.md",
+		filepath.Join(g.config.Docs.DocsDir, "getting-started", "README.md"), templateData); err != nil {
+		return fmt.Errorf("failed to generate getting-started index: %w", err)
+	}
+
 	// Generate Packages index
 	if err := g.generateTemplateFile("packages-index.md",
 		filepath.Join(g.config.Docs.DocsDir, "packages", "README.md"), templateData); err != nil {
@@ -1108,9 +1200,9 @@ func (g *DocGenerator) generateDocumentationIndexes() error {
 		return fmt.Errorf("failed to generate main docs index: %w", err)
 	}
 
-	// Generate GitBook SUMMARY.md for navigation order
-	if err := g.generateGitBookSummary(templateData); err != nil {
-		return fmt.Errorf("failed to generate GitBook summary: %w", err)
+	// Generate GitBook configuration
+	if err := g.generateGitBookConfig(); err != nil {
+		return fmt.Errorf("failed to generate GitBook config: %w", err)
 	}
 
 	// Generate common guide files (only if they don't exist)
@@ -1206,9 +1298,9 @@ func (g *DocGenerator) generatePreservableTemplateFile(templateName, outputPath 
 
 // generatePackageGuides creates guide stubs for a package only if they don't exist
 func (g *DocGenerator) generatePackageGuides(pkg *PackageDoc, dir string) error {
-	// Create basic guide files for the package with flattened names
+	// Create basic guide files for the package in directory structure
 	guides := map[string]string{
-		fmt.Sprintf("%s-best-practices.md", pkg.Name): fmt.Sprintf(`# %s Best Practices
+		"best-practices.md": fmt.Sprintf(`# %s Best Practices
 
 ## Overview
 
@@ -1239,7 +1331,7 @@ by the documentation generator, so you can safely edit and maintain the content.
 -->
 `, pkg.Name, pkg.Name),
 
-		fmt.Sprintf("%s-patterns.md", pkg.Name): fmt.Sprintf(`# %s Common Patterns
+		"patterns.md": fmt.Sprintf(`# %s Common Patterns
 
 ## Overview
 
@@ -1275,13 +1367,30 @@ This file is only created if it doesn't exist. Once created, it won't be overwri
 by the documentation generator, so you can safely edit and maintain the content.
 -->
 `, pkg.Name, pkg.Name),
+
+		"README.md": fmt.Sprintf(`# %s Guides
+
+This directory contains guides and best practices for using the %s package.
+
+## Available Guides
+
+- [Best Practices](best-practices.md) - Recommended usage patterns and performance tips
+- [Common Patterns](patterns.md) - Examples and implementation patterns
+
+## Getting Help
+
+If you need help with %s:
+- Check the [API Reference](../../api-reference/%s.md)
+- Review the [Examples](../../examples/%s/README.md)
+- Visit the [Getting Started guide](../../getting-started/%s.md)
+`, pkg.Name, pkg.Name, pkg.Name, pkg.Name, pkg.Name, pkg.Name),
 	}
 
 	for filename, content := range guides {
-		filepath := filepath.Join(dir, filename)
+		filePath := filepath.Join(dir, filename)
 
 		// Check if file already exists - if so, skip it to preserve manual content
-		if _, err := os.Stat(filepath); err == nil {
+		if _, err := os.Stat(filePath); err == nil {
 			if g.config.Output.Verbose {
 				fmt.Printf("📝 Skipped existing guide: %s (preserving manual content)\n", filename)
 			}
@@ -1289,94 +1398,38 @@ by the documentation generator, so you can safely edit and maintain the content.
 		}
 
 		// Only create the file if it doesn't exist
-		if err := os.WriteFile(filepath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
 			return fmt.Errorf("failed to write guide %s: %w", filename, err)
 		}
 
 		if g.config.Output.Verbose {
-			fmt.Printf("📚 Created new guide stub: %s\n", filename)
+			fmt.Printf("📚 Created new guide stub: %s/%s\n", filepath.Base(dir), filename)
 		}
 	}
 
 	return nil
 }
 
-// generateGitBookSummary creates SUMMARY.md for GitBook navigation control
-func (g *DocGenerator) generateGitBookSummary(data interface{}) error {
-	templateData := data.(struct {
-		Repository RepositoryConfig
-		Packages   []PackageConfig
-		ImportPath string
-		Owner      string
-		Name       string
-		Config     Config
-	})
+// generateGitBookConfig creates .gitbook.yaml configuration file
+func (g *DocGenerator) generateGitBookConfig() error {
+	gitbookConfig := `root: ./docs
 
-	summaryContent := `# Table of contents
+structure:
+  readme: README.md
+  summary: SUMMARY.md
 
-* [Introduction](README.md)
-* [Getting Started](getting-started.md)
-
-## Packages
-
+redirects:
+  previous/page: new-folder/page.md
 `
-	// Add each package
-	for _, pkg := range templateData.Packages {
-		summaryContent += fmt.Sprintf("* [%s](packages/%s.md)\n", pkg.Name, pkg.Name)
+
+	// Write .gitbook.yaml to project root (not docs directory)
+	configPath := ".gitbook.yaml"
+	if err := os.WriteFile(configPath, []byte(gitbookConfig), 0644); err != nil {
+		return fmt.Errorf("failed to write .gitbook.yaml: %w", err)
 	}
 
-	summaryContent += `
-## API Reference
-
-* [Overview](api-reference/README.md)
-`
-	// Add API reference for each package
-	for _, pkg := range templateData.Packages {
-		summaryContent += fmt.Sprintf("* [%s API](api-reference/%s.md)\n", pkg.Name, pkg.Name)
-	}
-
-	summaryContent += `
-## Guides
-
-* [Overview](guides/README.md)
-* [Contributing](guides/contributing.md)
-* [FAQ](guides/faq.md)
-`
-	// Add best practices as index to each package's guide section
-	for _, pkg := range templateData.Packages {
-		summaryContent += fmt.Sprintf("* [%s Best Practices](guides/%s-best-practices.md)\n", pkg.Name, pkg.Name)
-		summaryContent += fmt.Sprintf("  * [%s Patterns](guides/%s-patterns.md)\n", pkg.Name, pkg.Name)
-	}
-
-	summaryContent += `
-## Examples
-
-* [Overview](examples/README.md)
-`
-	// Add examples for each package
-	for _, pkg := range templateData.Packages {
-		summaryContent += fmt.Sprintf("* [%s Examples](examples/%s/README.md)\n", pkg.Name, pkg.Name)
-		summaryContent += fmt.Sprintf("  * [Basic Examples](examples/%s/basic.md)\n", pkg.Name)
-		summaryContent += fmt.Sprintf("  * [Advanced Examples](examples/%s/advanced.md)\n", pkg.Name)
-	}
-
-	// Write SUMMARY.md only if it doesn't exist (preserve manual navigation order)
-	summaryPath := filepath.Join(g.config.Docs.DocsDir, "SUMMARY.md")
-
-	// Check if SUMMARY.md already exists - if so, skip it to preserve manual order
-	if _, err := os.Stat(summaryPath); err == nil {
-		if g.config.Output.Verbose {
-			fmt.Printf("📝 Skipped existing SUMMARY.md (preserving manual navigation order)\n")
-		}
-	} else {
-		// Only create the file if it doesn't exist
-		if err := os.WriteFile(summaryPath, []byte(summaryContent), 0644); err != nil {
-			return fmt.Errorf("failed to write SUMMARY.md: %w", err)
-		}
-
-		if g.config.Output.Verbose {
-			fmt.Printf("📄 Generated GitBook SUMMARY.md\n")
-		}
+	if g.config.Output.Verbose {
+		fmt.Printf("📄 Generated .gitbook.yaml configuration\n")
 	}
 
 	return nil
