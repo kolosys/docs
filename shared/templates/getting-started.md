@@ -77,7 +77,8 @@ func main() {
 
 ## Next Steps
 
+- [Packages](packages/README.md) - Package overviews and installation guides
 - [API Reference](api-reference/README.md) - Complete API documentation
-- [Examples](examples/README.md) - Working examples and tutorials
+- [Examples](examples/README.md) - Working examples and tutorials  
 - [Guides](guides/README.md) - In-depth guides and best practices
 - [GitHub Repository](https://github.com/{{.Owner}}/{{.Name}})

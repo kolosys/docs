@@ -40,9 +40,10 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: ${{ inputs.go_version }}
+          # go-version: ${{ inputs.go_version }}
+          go-version: 1.24 # Temporary, until lint action supports go 1.25
 
       - name: Cache Go modules
         uses: actions/cache@v3
@@ -88,7 +89,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -128,7 +129,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
 

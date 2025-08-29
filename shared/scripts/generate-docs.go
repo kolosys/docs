@@ -230,18 +230,24 @@ func (g *DocGenerator) GeneratePackageDocs(packageName string) error {
 		return fmt.Errorf("failed to parse package: %w", err)
 	}
 
-	// Generate API reference in api-reference directory
+	// Generate package overview in packages directory
+	packagesDir := filepath.Join(g.config.Docs.DocsDir, "packages", packageName)
+	if err := os.MkdirAll(packagesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create packages directory: %w", err)
+	}
+
+	// Generate package README (overview, installation, quick start)
+	if err := g.generatePackageReadme(pkgDoc, packagesDir); err != nil {
+		return fmt.Errorf("failed to generate package README: %w", err)
+	}
+
+	// Generate API reference in api-reference directory (detailed API docs only)
 	apiDir := filepath.Join(g.config.Docs.DocsDir, "api-reference", packageName)
 	if err := os.MkdirAll(apiDir, 0755); err != nil {
 		return fmt.Errorf("failed to create API directory: %w", err)
 	}
 
-	// Generate package overview for API reference
-	if err := g.generatePackageReadme(pkgDoc, apiDir); err != nil {
-		return fmt.Errorf("failed to generate package README: %w", err)
-	}
-
-	// Generate detailed API reference
+	// Generate detailed API reference (no README in api-reference directory)
 	if err := g.generateAPIReference(pkgDoc, apiDir); err != nil {
 		return fmt.Errorf("failed to generate API reference: %w", err)
 	}
@@ -1026,6 +1032,7 @@ func (g *DocGenerator) copyRepositoryReadme() error {
 func (g *DocGenerator) createDocumentationStructure() error {
 	dirs := []string{
 		g.config.Docs.DocsDir,
+		filepath.Join(g.config.Docs.DocsDir, "packages"),
 		filepath.Join(g.config.Docs.DocsDir, "api-reference"),
 		filepath.Join(g.config.Docs.DocsDir, "examples"),
 		filepath.Join(g.config.Docs.DocsDir, "guides"),
@@ -1061,6 +1068,12 @@ func (g *DocGenerator) generateDocumentationIndexes() error {
 		Owner:      g.config.Repository.Owner,
 		Name:       g.config.Repository.Name,
 		Config:     g.config,
+	}
+
+	// Generate Packages index
+	if err := g.generateTemplateFile("packages-index.md",
+		filepath.Join(g.config.Docs.DocsDir, "packages", "README.md"), templateData); err != nil {
+		return fmt.Errorf("failed to generate packages index: %w", err)
 	}
 
 	// Generate API Reference index

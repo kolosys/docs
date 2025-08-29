@@ -15,7 +15,7 @@ on:
         description: "Go version to use"
         required: false
         type: string
-        default: "1.22"
+        default: "1.24"
       generate_examples:
         description: "Whether to generate examples documentation"
         required: false
@@ -63,7 +63,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go_version }}
 
