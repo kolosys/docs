@@ -47,6 +47,7 @@ permissions:
 jobs:
   generate-docs:
     runs-on: ubuntu-latest
+    if: github.ref_type != 'tag'
 
     steps:
       - name: Generate GitHub App Token
@@ -129,7 +130,13 @@ jobs:
           # Copy config to docgen directory and run from there
           # This way templates/ is naturally available
           cp kolosys-docs.json .kolosys-tools/docgen/
-          cd .kolosys-tools/docgen && go run .
+          cd .kolosys-tools/docgen
+
+          # Download dependencies for the docgen tool
+          go mod download
+
+          # Run the documentation generator
+          go run .
 
       - name: Verify generated documentation
         run: |
@@ -205,7 +212,9 @@ jobs:
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
           commit_author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
-          push_options: "--force-with-lease"
+          skip_dirty_check: true
+          skip_fetch: true
+          skip_checkout: true
 
       - name: Fallback commit (if auto-commit fails)
         if: ${{ !inputs.skip_commit && inputs.create_pr == false && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
