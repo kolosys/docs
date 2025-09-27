@@ -110,8 +110,8 @@ jobs:
               }
             ],
             "docs": {
-              "root_dir": ".",
-              "docs_dir": "docs"
+              "root_dir": "../..",
+              "docs_dir": "../../docs"
             },
             "output": {
               "generate_combined_api": true,
@@ -126,8 +126,10 @@ jobs:
         run: |
           echo "🚀 Building ${{ inputs.repository_name }} documentation..."
 
-          # Run the documentation generator from the cloned repository
-          go run .kolosys-tools/docgen
+          # Copy config to docgen directory and run from there
+          # This way templates/ is naturally available
+          cp kolosys-docs.json .kolosys-tools/docgen/
+          cd .kolosys-tools/docgen && go run .
 
       - name: Verify generated documentation
         run: |
@@ -142,7 +144,7 @@ jobs:
       - name: Cleanup
         run: |
           # Remove temporary files
-          rm -rf .kolosys-tools
+          rm -rf .kolosys-tools docs-templates
 
       - name: Debug workflow inputs
         run: |

@@ -6,7 +6,7 @@ This guide will help you get up and running quickly with {{.Name}}.
 
 ### Requirements
 
-- Go 1.22 or later
+- Go 1.21 or later
 - No external dependencies required
 
 ### Install via go get
@@ -80,13 +80,15 @@ func main() {
 {{.Name}} provides the following packages:
 
 {{- range .Packages}}
+
 ### [{{.Name}}](packages/{{.Name}}.md)
 
 {{.Description}}
 
 **Quick Links:**
+
 - [Package Overview](packages/{{.Name}}.md) - Installation and getting started
-- [API Reference](api-reference/{{.Name}}.md) - Complete API documentation  
+- [API Reference](api-reference/{{.Name}}.md) - Complete API documentation
 - [Examples](examples/{{.Name}}/README.md) - Working examples
 - [Best Practices](guides/{{.Name}}-best-practices.md) - Recommended patterns
 
@@ -95,6 +97,6 @@ func main() {
 ## Next Steps
 
 - [API Reference](api-reference/README.md) - Complete API documentation
-- [Examples](examples/README.md) - Working examples and tutorials  
+- [Examples](examples/README.md) - Working examples and tutorials
 - [Guides](guides/README.md) - In-depth guides and best practices
 - [GitHub Repository](https://github.com/{{.Owner}}/{{.Name}})
