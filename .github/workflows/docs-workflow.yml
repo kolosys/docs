@@ -101,7 +101,8 @@ jobs:
             "repository": {
               "name": "${{ inputs.repository_name }}",
               "owner": "kolosys",
-              "description": "Documentation for ${{ inputs.repository_name }}"
+              "description": "Documentation for ${{ inputs.repository_name }}",
+              "import_path": "github.com/kolosys/${{ inputs.repository_name }}"
             },
             "packages": [
               {
@@ -113,6 +114,11 @@ jobs:
             "docs": {
               "root_dir": "../..",
               "docs_dir": "../../docs"
+            },
+            "discovery": {
+              "enabled": false,
+              "exclude_patterns": [],
+              "include_only_with_godoc": false
             },
             "output": {
               "generate_combined_api": true,
@@ -196,8 +202,26 @@ jobs:
           committer: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
           author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
 
-      - name: Commit generated documentation (direct)
+      - name: Check for documentation changes
+        id: verify-docs-changed
         if: ${{ !inputs.skip_commit && inputs.create_pr == false && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+        run: |
+          if [ -d "docs" ] && [ "$(find docs -name '*.md' -type f | wc -l)" -gt 0 ]; then
+            if git diff --quiet --exit-code docs/; then
+              echo "changed=false" >> $GITHUB_OUTPUT
+              echo "No documentation changes detected"
+            else
+              echo "changed=true" >> $GITHUB_OUTPUT
+              echo "Documentation changes detected"
+              git diff --name-only docs/
+            fi
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No docs directory or markdown files found"
+          fi
+
+      - name: Commit generated documentation (direct)
+        if: ${{ !inputs.skip_commit && inputs.create_pr == false && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && steps.verify-docs-changed.outputs.changed == 'true' }}
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: |
@@ -208,7 +232,7 @@ jobs:
             - Updated references
 
             [skip ci]
-          file_pattern: "docs/**"
+          file_pattern: "docs/"
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
           commit_author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
