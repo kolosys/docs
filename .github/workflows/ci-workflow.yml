@@ -196,7 +196,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Generate Documentation
-        uses: kolosys/proton@v1.2
+        uses: kolosys/proton@v1.3
         with:
           token: ${{ steps.app-token.outputs.token }}
           output-directory: ${{ github.event.inputs.output_directory || 'docs' }}
